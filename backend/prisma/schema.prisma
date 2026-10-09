@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Product {
+  id          Int        @id @default(autoincrement())
+  code        String     @unique // DS-ZAP-001 o DS-JOY-001
+  name        String
+  category    String     // 'zapatos' o 'joyas'
+  subcategory String     // 'Sandalias', 'Huaraches', 'Collares', etc.
+  description String?    @db.Text
+  costPrice   Decimal    @db.Decimal(10, 2)
+  salePrice   Decimal    @db.Decimal(10, 2)
+  stock       Int        @default(0)
+  minStock    Int        @default(5)
+  size        String?
+  sizesStock  Json?      // Matriz de tallas para calzado: { "22": 2, "23": 5, ... }
+  material    String?
+  color       String?
+  status      String     @default("active") // 'active' | 'inactive'
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  saleItems   SaleItem[]
+  movements   Movement[]
+
+  @@index([category])
+  @@index([status])
+  @@index([code])
+}
+
+model Sale {
+  id             Int        @id @default(autoincrement())
+  saleNumber     String     @unique // VTA-0001
+  date           DateTime   @default(now())
+  subtotal       Decimal    @db.Decimal(10, 2)
+  discount       Decimal    @default(0) @db.Decimal(10, 2)
+  total          Decimal    @db.Decimal(10, 2)
+  paymentMethod  String     // 'Efectivo', 'Tarjeta', 'Transferencia'
+  receivedAmount Decimal?   @db.Decimal(10, 2)
+  customerName   String     @default("Cliente General")
+  customerPhone  String?
+  status         String     @default("completed") // 'completed' | 'cancelled'
+  createdAt      DateTime   @default(now())
+
+  items          SaleItem[]
+
+  @@index([date])
+  @@index([status])
+}
+
+model SaleItem {
+  id          Int      @id @default(autoincrement())
+  saleId      Int
+  sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId   Int
+  product     Product  @relation(fields: [productId], references: [id])
+  productCode String
+  productName String
+  selectedSize String?
+  quantity    Int
+  price       Decimal  @db.Decimal(10, 2)
+  costPrice   Decimal  @db.Decimal(10, 2)
+  subtotal    Decimal  @db.Decimal(10, 2)
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+model Movement {
+  id             Int      @id @default(autoincrement())
+  date           DateTime @default(now())
+  type           String   // 'entrada' | 'salida' | 'ajuste'
+  reason         String
+  productCode    String
+  productName    String
+  quantity       Int
+  remainingStock Int
+  productId      Int?
+  product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([productCode])
+  @@index([date])
+}
