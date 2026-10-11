@@ -117,6 +117,130 @@ export const api = {
     return request('/dashboard/stats');
   },
 
+  // Proveedores
+  async getSuppliers(params = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.search) searchParams.set('search', params.search);
+    if (params.status && params.status !== 'all') searchParams.set('status', params.status);
+    if (params.category && params.category !== 'all') searchParams.set('category', params.category);
+
+    const qs = searchParams.toString();
+    return request(`/suppliers${qs ? `?${qs}` : ''}`);
+  },
+
+  async getNextSupplierCode() {
+    return request('/suppliers/next-code');
+  },
+
+  async createSupplier(supplierData) {
+    return request('/suppliers', {
+      method: 'POST',
+      body: JSON.stringify(supplierData),
+    });
+  },
+
+  async updateSupplier(id, updates) {
+    return request(`/suppliers/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  },
+
+  async deleteSupplier(id) {
+    return request(`/suppliers/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Compras de Mercancía
+  async getPurchases(params = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.search) searchParams.set('search', params.search);
+    if (params.status && params.status !== 'all') searchParams.set('status', params.status);
+    if (params.supplierId) searchParams.set('supplierId', params.supplierId);
+    if (params.dateFrom) searchParams.set('dateFrom', params.dateFrom);
+    if (params.dateTo) searchParams.set('dateTo', params.dateTo);
+
+    const qs = searchParams.toString();
+    return request(`/purchases${qs ? `?${qs}` : ''}`);
+  },
+
+  async getNextPurchaseNumber() {
+    return request('/purchases/next-number');
+  },
+
+  async createPurchase(purchaseData) {
+    return request('/purchases', {
+      method: 'POST',
+      body: JSON.stringify(purchaseData),
+    });
+  },
+
+  async cancelPurchase(id) {
+    return request(`/purchases/${id}/cancel`, {
+      method: 'PATCH',
+    });
+  },
+
+  // Categorías
+  async getCategories() {
+    return request('/categories');
+  },
+
+  async createCategory(categoryData) {
+    return request('/categories', {
+      method: 'POST',
+      body: JSON.stringify(categoryData),
+    });
+  },
+
+  async updateCategory(id, updates) {
+    return request(`/categories/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  },
+
+  async deleteCategory(id) {
+    return request(`/categories/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Movimientos de Caja Chica
+  async getCashMovements(params = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.type && params.type !== 'all') searchParams.set('type', params.type);
+    if (params.dateFrom) searchParams.set('dateFrom', params.dateFrom);
+    if (params.dateTo) searchParams.set('dateTo', params.dateTo);
+
+    const qs = searchParams.toString();
+    return request(`/cash-movements${qs ? `?${qs}` : ''}`);
+  },
+
+  async getCashSummary() {
+    return request('/cash-movements/summary');
+  },
+
+  async createCashMovement(movementData) {
+    return request('/cash-movements', {
+      method: 'POST',
+      body: JSON.stringify(movementData),
+    });
+  },
+
+  // Autenticación de Usuarios
+  async login(credentials) {
+    return request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
+  },
+
+  async getProfile(userId) {
+    return request(`/auth/profile/${userId}`);
+  },
+
   // Health check del backend
   async checkHealth() {
     try {

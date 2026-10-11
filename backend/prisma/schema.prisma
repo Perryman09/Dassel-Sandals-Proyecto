@@ -7,26 +7,28 @@ datasource db {
 }
 
 model Product {
-  id          Int        @id @default(autoincrement())
-  code        String     @unique // DS-ZAP-001 o DS-JOY-001
-  name        String
-  category    String     // 'zapatos' o 'joyas'
-  subcategory String     // 'Sandalias', 'Huaraches', 'Collares', etc.
-  description String?    @db.Text
-  costPrice   Decimal    @db.Decimal(10, 2)
-  salePrice   Decimal    @db.Decimal(10, 2)
-  stock       Int        @default(0)
-  minStock    Int        @default(5)
-  size        String?
-  sizesStock  Json?      // Matriz de tallas para calzado: { "22": 2, "23": 5, ... }
-  material    String?
-  color       String?
-  status      String     @default("active") // 'active' | 'inactive'
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id            Int            @id @default(autoincrement())
+  code          String         @unique // DS-ZAP-001 o DS-JOY-001
+  name          String
+  category      String         // 'zapatos' o 'joyas' o id de categoría
+  categoryRel   Category?      @relation(fields: [category], references: [id], onDelete: Restrict)
+  subcategory   String         // 'Sandalias', 'Huaraches', 'Collares', etc.
+  description   String?        @db.Text
+  costPrice     Decimal        @db.Decimal(10, 2)
+  salePrice     Decimal        @db.Decimal(10, 2)
+  stock         Int            @default(0)
+  minStock      Int            @default(5)
+  size          String?
+  sizesStock    Json?          // Matriz de tallas para calzado: { "36": 4, "37": 8, ... }
+  material      String?
+  color         String?
+  status        String         @default("active") // 'active' | 'inactive'
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  saleItems   SaleItem[]
-  movements   Movement[]
+  saleItems     SaleItem[]
+  purchaseItems PurchaseItem[]
+  movements     Movement[]
 
   @@index([category])
   @@index([status])
@@ -45,27 +47,30 @@ model Sale {
   customerName   String     @default("Cliente General")
   customerPhone  String?
   status         String     @default("completed") // 'completed' | 'cancelled'
+  userId         Int?
+  user           User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt      DateTime   @default(now())
 
   items          SaleItem[]
 
   @@index([date])
   @@index([status])
+  @@index([userId])
 }
 
 model SaleItem {
-  id          Int      @id @default(autoincrement())
-  saleId      Int
-  sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  productId   Int
-  product     Product  @relation(fields: [productId], references: [id])
-  productCode String
-  productName String
+  id           Int      @id @default(autoincrement())
+  saleId       Int
+  sale         Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId    Int?
+  product      Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productCode  String
+  productName  String
   selectedSize String?
-  quantity    Int
-  price       Decimal  @db.Decimal(10, 2)
-  costPrice   Decimal  @db.Decimal(10, 2)
-  subtotal    Decimal  @db.Decimal(10, 2)
+  quantity     Int
+  price        Decimal  @db.Decimal(10, 2)
+  costPrice    Decimal  @db.Decimal(10, 2)
+  subtotal     Decimal  @db.Decimal(10, 2)
 
   @@index([saleId])
   @@index([productId])
@@ -82,7 +87,145 @@ model Movement {
   remainingStock Int
   productId      Int?
   product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  userId         Int?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([productCode])
   @@index([date])
+  @@index([userId])
+}
+
+// =========================================================
+// TABLAS: PROVEEDORES, COMPRAS, CATEGORÍAS Y CAJA CHICA
+// =========================================================
+
+model Supplier {
+  id            Int        @id @default(autoincrement())
+  code          String     @unique // PROV-001
+  name          String
+  contactPerson String?
+  phone         String
+  email         String?
+  ruc           String?
+  category      String     @default("zapatos") // 'zapatos' | 'joyas' | 'general'
+  address       String?
+  notes         String?    @db.Text
+  status        String     @default("active") // 'active' | 'inactive'
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  purchases     Purchase[]
+
+  @@index([status])
+  @@index([code])
+}
+
+model Purchase {
+  id             Int            @id @default(autoincrement())
+  purchaseNumber String         @unique // COM-0001
+  invoiceNumber  String         @default("S/N")
+  date           DateTime       @default(now())
+  supplierId     Int?
+  supplier       Supplier?      @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  supplierName   String         @default("Proveedor General")
+  total          Decimal        @db.Decimal(10, 2)
+  paymentMethod  String         @default("Transferencia") // 'Efectivo', 'Transferencia', 'Cheque', 'Crédito'
+  status         String         @default("received") // 'received' | 'cancelled'
+  notes          String?        @db.Text
+  userId         Int?
+  user           User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  items          PurchaseItem[]
+
+  @@index([date])
+  @@index([status])
+  @@index([supplierId])
+  @@index([userId])
+}
+
+model PurchaseItem {
+  id             Int       @id @default(autoincrement())
+  purchaseId     Int
+  purchase       Purchase  @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  productId      Int?
+  product        Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productCode    String
+  productName    String
+  category       String?
+  quantity       Int
+  unitCost       Decimal   @db.Decimal(10, 2)
+  subtotal       Decimal   @db.Decimal(10, 2)
+  sizesBreakdown Json?     // Matriz de tallas: { "36": 4, "37": 6 }
+
+  @@index([purchaseId])
+  @@index([productId])
+}
+
+model Category {
+  id            String     @id // 'zapatos', 'joyas' o slug personalizado
+  name          String
+  icon          String?    @default("📁")
+  subcategories Json       // Array de subcategorías: ["Sandalias", "Huaraches", ...]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  products      Product[]
+}
+
+model CashMovement {
+  id          Int      @id @default(autoincrement())
+  date        DateTime @default(now())
+  type        String   // 'apertura' | 'ingreso' | 'egreso' | 'cierre'
+  amount      Decimal  @db.Decimal(10, 2)
+  reason      String
+  responsible String?  @default("Administrador")
+  notes       String?  @db.Text
+  userId      Int?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([date])
+  @@index([type])
+  @@index([userId])
+}
+
+// =========================================================
+// TABLAS: USUARIOS Y ROLES (ENTIDAD-RELACIÓN)
+// =========================================================
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // 'admin', 'vendedor', 'cajero'
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+}
+
+model User {
+  id             Int            @id @default(autoincrement())
+  username       String         @unique
+  password       String         // MD5 Hash
+  name           String         @default("Dueño & Administrador Principal")
+  roleId         Int?
+  roleRel        Role?          @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  role           String         @default("admin")
+  avatar         String?        @default("/dassel-logo.png")
+  status         String         @default("active") // 'active' | 'inactive'
+  failedAttempts Int            @default(0) // Control de hasta 5 intentos
+  lockedUntil    DateTime?      // Bloqueo temporal tras superar intentos
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // Relaciones con las entidades de la base de datos:
+  sales          Sale[]
+  purchases      Purchase[]
+  cashMovements  CashMovement[]
+  movements      Movement[]
+
+  @@index([username])
+  @@index([roleId])
 }

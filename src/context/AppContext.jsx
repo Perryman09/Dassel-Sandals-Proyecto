@@ -4,13 +4,157 @@ import { applyTheme, THEMES } from '../utils/theme';
 
 const AppContext = createContext();
 
+// Tallas estándar para calzado
+// Tacones / Medida Europea (Continental): 35 al 42
+export const SHOE_SIZES_EUR = ['35', '36', '37', '38', '39', '40', '41', '42'];
+// Medida Americana (US): 4 al 11 con medios números
+export const SHOE_SIZES_US = ['4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11'];
+// Matriz combinada para compatibilidad
+export const SHOE_SIZES = [...SHOE_SIZES_EUR, ...SHOE_SIZES_US];
+
 export const SUBCATEGORIES = {
-  zapatos: ['Sandalias', 'Huaraches', 'Plataformas', 'Flats', 'Tacones', 'Otro'],
-  joyas: ['Collares', 'Pulseras', 'Aretes', 'Anillos', 'Tobilleras', 'Dijes', 'Otro'],
+  zapatos: ['Sandalias', 'Huaraches', 'Plataformas', 'Flats', 'Tacones', 'Tacones Altos', 'Stilettos', 'Botines', 'Otro'],
+  joyas: ['Collares', 'Pulseras', 'Aretes', 'Anillos', 'Tobilleras', 'Dijes', 'Cadenas', 'Juegos', 'Otro'],
 };
 
-// Tallas estándar para calzado
-export const SHOE_SIZES = ['22', '22.5', '23', '23.5', '24', '24.5', '25', '25.5', '26', '26.5', '27', '28'];
+export const initialCategories = [
+  {
+    id: 'zapatos',
+    name: 'Zapatos & Tacones',
+    icon: '👡',
+    subcategories: ['Sandalias', 'Huaraches', 'Plataformas', 'Flats', 'Tacones', 'Tacones Altos', 'Stilettos', 'Botines', 'Otro'],
+  },
+  {
+    id: 'joyas',
+    name: 'Joyas & Accesorios',
+    icon: '💎',
+    subcategories: ['Collares', 'Pulseras', 'Aretes', 'Anillos', 'Tobilleras', 'Dijes', 'Cadenas', 'Juegos', 'Otro'],
+  },
+];
+
+export const initialSuppliers = [
+  {
+    id: 1,
+    code: 'PROV-001',
+    name: 'Calzados & Tacones León S.A.',
+    contactPerson: 'Carlos Morales',
+    phone: '8822 1100',
+    email: 'ventas@calzadosleon.ni',
+    ruc: 'J031000045892',
+    category: 'zapatos',
+    address: 'Km 4.5 Carretera Norte, Managua',
+    notes: 'Proveedor principal de sandalias de cuero y tacones de plataforma',
+    status: 'active',
+  },
+  {
+    id: 2,
+    code: 'PROV-002',
+    name: 'Platería & Joyas San Jerónimo',
+    contactPerson: 'Elena Vega',
+    phone: '8455 9988',
+    email: 'contacto@joyassanjeronimo.com',
+    ruc: 'J032000084711',
+    category: 'joyas',
+    address: 'Barrio Monimbó, Masaya',
+    notes: 'Artesanos en plata 925, filigrana y pulseras con piedras semipreciosas',
+    status: 'active',
+  },
+  {
+    id: 3,
+    code: 'PROV-003',
+    name: 'Importadora Moda & Tacones Centroamérica',
+    contactPerson: 'Kevin Rivas',
+    phone: '8911 3344',
+    email: 'pedidos@modacentroamerica.com',
+    ruc: 'J031000077889',
+    category: 'zapatos',
+    address: 'Zona Franca Las Mercedes, Managua',
+    notes: 'Tacones importados, stilettos y sandalias de fiesta (Tallas 35-42 EUR y US)',
+    status: 'active',
+  },
+];
+
+export const initialPurchases = [
+  {
+    id: 1,
+    purchaseNumber: 'COM-0001',
+    invoiceNumber: 'FAC-8420',
+    supplierId: 1,
+    supplierName: 'Calzados & Tacones León S.A.',
+    date: '2026-10-05T10:00:00',
+    paymentMethod: 'Transferencia',
+    items: [
+      {
+        productId: 1,
+        productCode: 'DS-ZAP-001',
+        productName: 'Sandalia Maya Artesanal',
+        quantity: 15,
+        unitCost: 350,
+        subtotal: 5250,
+        sizesBreakdown: { '36': 3, '37': 5, '38': 5, '39': 2 },
+      },
+      {
+        productId: 4,
+        productCode: 'DS-ZAP-004',
+        productName: 'Plataforma Yute Bohemia',
+        quantity: 10,
+        unitCost: 450,
+        subtotal: 4500,
+        sizesBreakdown: { '37': 4, '38': 4, '39': 2 },
+      },
+    ],
+    total: 9750,
+    status: 'received',
+    notes: 'Lote de inicio de temporada recibido en óptimas condiciones',
+  },
+  {
+    id: 2,
+    purchaseNumber: 'COM-0002',
+    invoiceNumber: 'FAC-1290',
+    supplierId: 2,
+    supplierName: 'Platería & Joyas San Jerónimo',
+    date: '2026-10-06T14:30:00',
+    paymentMethod: 'Efectivo',
+    items: [
+      {
+        productId: 8,
+        productCode: 'DS-JOY-001',
+        productName: 'Collar Turquesa Bohemio',
+        quantity: 20,
+        unitCost: 150,
+        subtotal: 3000,
+      },
+      {
+        productId: 10,
+        productCode: 'DS-JOY-003',
+        productName: 'Aretes Luna y Sol Filigrana',
+        quantity: 25,
+        unitCost: 120,
+        subtotal: 3000,
+      },
+    ],
+    total: 6000,
+    status: 'received',
+    notes: 'Compra de surtido de joyería fina en plata y oro',
+  },
+];
+
+// Lógica oficial de Descuento de Mayoreo (Calzado & Joyas):
+// De 3 a 4 piezas -> 5%
+// De 5 a 7 piezas -> 10%
+// De 8 a más piezas -> 15%
+export function getWholesaleTier(totalPieces) {
+  if (totalPieces >= 8) {
+    return { percent: 15, tierName: 'Mayoreo Oro (15%)', nextTierPieces: 0, nextPercent: 15 };
+  }
+  if (totalPieces >= 5) {
+    return { percent: 10, tierName: 'Mayoreo Plata (10%)', nextTierPieces: 8 - totalPieces, nextPercent: 15 };
+  }
+  if (totalPieces >= 3) {
+    return { percent: 5, tierName: 'Mayoreo Bronce (5%)', nextTierPieces: 5 - totalPieces, nextPercent: 10 };
+  }
+  return { percent: 0, tierName: 'Detalle (0%)', nextTierPieces: 3 - totalPieces, nextPercent: 5 };
+}
 
 const initialProducts = [
   {
@@ -24,8 +168,8 @@ const initialProducts = [
     salePrice: 650,
     stock: 25,
     minStock: 5,
-    size: '22-26',
-    sizesStock: { '22': 2, '23': 6, '24': 10, '25': 5, '26': 2 },
+    size: 'US 5-9',
+    sizesStock: { '5': 2, '6': 6, '7': 8, '7.5': 4, '8': 3, '9': 2 },
     material: 'Cuero sintético',
     color: 'Beige',
     status: 'active',
@@ -42,8 +186,8 @@ const initialProducts = [
     salePrice: 520,
     stock: 18,
     minStock: 5,
-    size: '24-28',
-    sizesStock: { '24': 4, '25': 5, '26': 5, '27': 3, '28': 1 },
+    size: 'US 6-10',
+    sizesStock: { '6': 3, '7': 5, '8': 5, '9': 3, '10': 2 },
     material: 'Cuero genuino',
     color: 'Café Caramelo',
     status: 'active',
@@ -60,8 +204,8 @@ const initialProducts = [
     salePrice: 380,
     stock: 40,
     minStock: 10,
-    size: '22-26',
-    sizesStock: { '22': 6, '23': 10, '24': 14, '25': 8, '26': 2 },
+    size: 'US 5-9',
+    sizesStock: { '5': 6, '6': 10, '7': 14, '8': 8, '9': 2 },
     material: 'EVA Premium',
     color: 'Negro Mate',
     status: 'active',
@@ -78,8 +222,8 @@ const initialProducts = [
     salePrice: 850,
     stock: 12,
     minStock: 5,
-    size: '23-26',
-    sizesStock: { '23': 2, '24': 5, '25': 4, '26': 1 },
+    size: 'US 6-8.5',
+    sizesStock: { '6': 2, '7': 5, '8': 4, '8.5': 1 },
     material: 'Yute y Cuero',
     color: 'Dorado / Natural',
     status: 'active',
@@ -96,8 +240,8 @@ const initialProducts = [
     salePrice: 420,
     stock: 3,
     minStock: 5,
-    size: '22-27',
-    sizesStock: { '23': 1, '24': 1, '25': 1 },
+    size: 'US 6-8',
+    sizesStock: { '6': 1, '7': 1, '8': 1 },
     material: 'Gamuza sintética',
     color: 'Rosa Palo',
     status: 'active',
@@ -114,8 +258,8 @@ const initialProducts = [
     salePrice: 580,
     stock: 0,
     minStock: 5,
-    size: '24-28',
-    sizesStock: { '24': 0, '25': 0, '26': 0, '27': 0, '28': 0 },
+    size: 'US 7-11',
+    sizesStock: { '7': 0, '8': 0, '9': 0, '10': 0, '11': 0 },
     material: 'Piel Vacuna',
     color: 'Miel',
     status: 'active',
@@ -132,8 +276,8 @@ const initialProducts = [
     salePrice: 750,
     stock: 8,
     minStock: 5,
-    size: '22-26',
-    sizesStock: { '22': 1, '23': 2, '24': 3, '25': 2 },
+    size: 'US 5-8.5',
+    sizesStock: { '5': 1, '6': 2, '7': 3, '8.5': 2 },
     material: 'Microfibra y Strass',
     color: 'Dorado',
     status: 'active',
@@ -359,6 +503,14 @@ function appReducer(state, action) {
       return { ...state, sales: action.payload };
     case 'SET_MOVEMENTS':
       return { ...state, movements: action.payload };
+    case 'SET_SUPPLIERS':
+      return { ...state, suppliers: action.payload };
+    case 'SET_PURCHASES':
+      return { ...state, purchases: action.payload };
+    case 'SET_CATEGORIES':
+      return { ...state, categories: action.payload };
+    case 'SET_CASH_MOVEMENTS':
+      return { ...state, cashMovements: action.payload };
 
     case 'ADD_PRODUCT': {
       const newProduct = { ...action.payload, id: action.payload.id || Date.now() };
@@ -535,12 +687,241 @@ function appReducer(state, action) {
       };
     }
 
+    // --- ACCIONES DE COMPRAS & PROVEEDORES ---
+    case 'SET_PURCHASES':
+      return { ...state, purchases: action.payload };
+
+    case 'ADD_PURCHASE': {
+      const newPurchase = {
+        ...action.payload,
+        id: action.payload.id || Date.now(),
+        date: action.payload.date || new Date().toISOString(),
+        total: Number(action.payload.total) || 0,
+      };
+
+      const newMovements = [];
+      const updatedProducts = state.products.map(p => {
+        const pItems = (newPurchase.items || []).filter(it => it.productId === p.id);
+        if (pItems.length === 0) return p;
+
+        let addedStock = 0;
+        let updatedSizesStock = p.sizesStock ? { ...p.sizesStock } : (p.category === 'zapatos' ? {} : null);
+        let latestCost = Number(p.costPrice) || 0;
+
+        pItems.forEach(it => {
+          const qty = Number(it.quantity) || 0;
+          addedStock += qty;
+          if (it.unitCost && Number(it.unitCost) > 0) {
+            latestCost = Number(it.unitCost);
+          }
+
+          if (it.sizesBreakdown && typeof it.sizesBreakdown === 'object') {
+            if (!updatedSizesStock) updatedSizesStock = {};
+            Object.entries(it.sizesBreakdown).forEach(([sz, q]) => {
+              const numQ = Number(q) || 0;
+              updatedSizesStock[sz] = (Number(updatedSizesStock[sz]) || 0) + numQ;
+            });
+          }
+
+          newMovements.push({
+            id: Date.now() + Math.random(),
+            date: newPurchase.date,
+            type: 'entrada',
+            reason: `Compra #${newPurchase.purchaseNumber} (Fact: ${newPurchase.invoiceNumber || 'S/N'} - ${newPurchase.supplierName || 'Proveedor'})`,
+            productCode: p.code,
+            productName: p.name,
+            quantity: qty,
+            remainingStock: Number(p.stock) + addedStock,
+          });
+        });
+
+        const newStock = Number(p.stock) + addedStock;
+
+        return {
+          ...p,
+          stock: newStock,
+          costPrice: latestCost,
+          sizesStock: updatedSizesStock || p.sizesStock,
+        };
+      });
+
+      let newCashMovements = [...state.cashMovements];
+      if (newPurchase.paymentMethod === 'Efectivo' && newPurchase.total > 0) {
+        newCashMovements = [
+          {
+            id: Date.now() + 2,
+            date: newPurchase.date,
+            type: 'salida',
+            category: 'Compra de Mercancía',
+            description: `Pago Fact. ${newPurchase.invoiceNumber || 'S/N'} (${newPurchase.supplierName || 'Proveedor'})`,
+            amount: Number(newPurchase.total) || 0,
+          },
+          ...newCashMovements,
+        ];
+      }
+
+      return {
+        ...state,
+        purchases: [newPurchase, ...(state.purchases || [])],
+        products: updatedProducts,
+        movements: [...newMovements, ...state.movements],
+        cashMovements: newCashMovements,
+      };
+    }
+
+    case 'CANCEL_PURCHASE': {
+      const purchase = (state.purchases || []).find(p => p.id === action.payload);
+      if (!purchase || purchase.status === 'cancelled') return state;
+
+      const cancelMovements = [];
+      const restoredProducts = state.products.map(p => {
+        const pItems = (purchase.items || []).filter(it => it.productId === p.id);
+        if (pItems.length === 0) return p;
+
+        let deductedStock = 0;
+        let updatedSizesStock = p.sizesStock ? { ...p.sizesStock } : null;
+
+        pItems.forEach(it => {
+          const qty = Number(it.quantity) || 0;
+          deductedStock += qty;
+
+          if (updatedSizesStock && it.sizesBreakdown) {
+            Object.entries(it.sizesBreakdown).forEach(([sz, q]) => {
+              const numQ = Number(q) || 0;
+              updatedSizesStock[sz] = Math.max(0, (Number(updatedSizesStock[sz]) || 0) - numQ);
+            });
+          }
+
+          cancelMovements.push({
+            id: Date.now() + Math.random(),
+            date: new Date().toISOString(),
+            type: 'salida',
+            reason: `Anulación Compra #${purchase.purchaseNumber}`,
+            productCode: p.code,
+            productName: p.name,
+            quantity: qty,
+            remainingStock: Math.max(0, Number(p.stock) - deductedStock),
+          });
+        });
+
+        return {
+          ...p,
+          stock: Math.max(0, Number(p.stock) - deductedStock),
+          sizesStock: updatedSizesStock || p.sizesStock,
+        };
+      });
+
+      return {
+        ...state,
+        purchases: (state.purchases || []).map(p => p.id === action.payload ? { ...p, status: 'cancelled' } : p),
+        products: restoredProducts,
+        movements: [...cancelMovements, ...state.movements],
+      };
+    }
+
+    // --- ACCIONES DE PROVEEDORES ---
+    case 'SET_SUPPLIERS':
+      return { ...state, suppliers: action.payload };
+
+    case 'ADD_SUPPLIER': {
+      const newSup = { ...action.payload, id: action.payload.id || Date.now() };
+      return { ...state, suppliers: [...(state.suppliers || []), newSup] };
+    }
+
+    case 'UPDATE_SUPPLIER':
+      return {
+        ...state,
+        suppliers: (state.suppliers || []).map(s => s.id === action.payload.id ? { ...s, ...action.payload.updates } : s),
+      };
+
+    case 'DELETE_SUPPLIER':
+      return {
+        ...state,
+        suppliers: (state.suppliers || []).filter(s => s.id !== action.payload),
+      };
+
+    // --- ACCIONES DE CATEGORÍAS & SUBCATEGORÍAS ---
+    case 'SET_CATEGORIES':
+      return { ...state, categories: action.payload };
+
+    case 'ADD_CATEGORY':
+      return { ...state, categories: [...(state.categories || []), action.payload] };
+
+    case 'UPDATE_CATEGORY':
+      return {
+        ...state,
+        categories: (state.categories || []).map(c => c.id === action.payload.id ? { ...c, ...action.payload.data } : c),
+      };
+
+    case 'DELETE_CATEGORY':
+      return {
+        ...state,
+        categories: (state.categories || []).filter(c => c.id !== action.payload),
+      };
+
+    case 'ADD_SUBCATEGORY': {
+      const { categoryId, subcategory } = action.payload;
+      return {
+        ...state,
+        categories: (state.categories || []).map(c => {
+          if (c.id === categoryId) {
+            const current = c.subcategories || [];
+            if (!current.includes(subcategory)) {
+              return { ...c, subcategories: [...current, subcategory] };
+            }
+          }
+          return c;
+        }),
+      };
+    }
+
+    case 'UPDATE_SUBCATEGORY': {
+      const { categoryId, oldName, newName } = action.payload;
+      return {
+        ...state,
+        categories: (state.categories || []).map(c => {
+          if (c.id === categoryId) {
+            return {
+              ...c,
+              subcategories: (c.subcategories || []).map(s => s === oldName ? newName : s),
+            };
+          }
+          return c;
+        }),
+        products: state.products.map(p => {
+          if (p.category === categoryId && p.subcategory === oldName) {
+            return { ...p, subcategory: newName };
+          }
+          return p;
+        }),
+      };
+    }
+
+    case 'DELETE_SUBCATEGORY': {
+      const { categoryId, subcategory } = action.payload;
+      return {
+        ...state,
+        categories: (state.categories || []).map(c => {
+          if (c.id === categoryId) {
+            return {
+              ...c,
+              subcategories: (c.subcategories || []).filter(s => s !== subcategory),
+            };
+          }
+          return c;
+        }),
+      };
+    }
+
     case 'RESET_ALL':
       return {
         products: initialProducts,
         sales: initialSales,
         movements: initialMovements,
         cashMovements: initialCashMovements,
+        categories: initialCategories,
+        suppliers: initialSuppliers,
+        purchases: initialPurchases,
       };
 
     default:
@@ -553,11 +934,62 @@ export function AppProvider({ children }) {
   const [currentTheme, setCurrentTheme] = useState('amber');
   const [themeMode, setThemeMode] = useState('dark');
 
+  // Usuario Autenticado
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dassel_auth_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const login = async (username, password) => {
+    if (backendOnline) {
+      try {
+        const res = await api.login({ username, password });
+        if (res && res.user) {
+          localStorage.setItem('dassel_auth_user', JSON.stringify(res.user));
+          if (res.token) localStorage.setItem('dassel_auth_token', res.token);
+          setCurrentUser(res.user);
+          return { success: true, user: res.user };
+        }
+      } catch (err) {
+        throw new Error(err.message || 'Usuario o contraseña incorrectos');
+      }
+    }
+
+    // Fallback de validación si el backend estuviera desconectado
+    if (username === 'Dassel2026' && password === 'DasselSandals2026') {
+      const adminUser = {
+        id: 1,
+        username: 'Dassel2026',
+        name: 'Dueño & Administrador Principal',
+        role: 'admin',
+        avatar: '/dassel-logo.png',
+      };
+      localStorage.setItem('dassel_auth_user', JSON.stringify(adminUser));
+      setCurrentUser(adminUser);
+      return { success: true, user: adminUser };
+    }
+
+    throw new Error('Usuario o contraseña incorrectos');
+  };
+
+  const logout = () => {
+    localStorage.removeItem('dassel_auth_user');
+    localStorage.removeItem('dassel_auth_token');
+    setCurrentUser(null);
+  };
+
   const [state, dispatch] = useReducer(appReducer, null, () => ({
     products: loadSavedData('products', initialProducts),
     sales: loadSavedData('sales', initialSales),
     movements: loadSavedData('movements', initialMovements),
     cashMovements: loadSavedData('cash_movements', initialCashMovements),
+    categories: loadSavedData('categories', initialCategories),
+    suppliers: loadSavedData('suppliers', initialSuppliers),
+    purchases: loadSavedData('purchases', initialPurchases),
   }));
 
   // Cargar tema y modo guardados al iniciar
@@ -591,14 +1023,38 @@ export function AppProvider({ children }) {
         const online = await api.checkHealth();
         setBackendOnline(online);
         if (online) {
-          const [dbProducts, dbSales, dbMovements] = await Promise.all([
+          const [
+            dbProducts,
+            dbSales,
+            dbMovements,
+            dbSuppliers,
+            dbPurchases,
+            dbCategories,
+            dbCashMovements,
+          ] = await Promise.all([
             api.getProducts().catch(() => null),
             api.getSales().catch(() => null),
             api.getMovements().catch(() => null),
+            api.getSuppliers().catch(() => null),
+            api.getPurchases().catch(() => null),
+            api.getCategories().catch(() => null),
+            api.getCashMovements().catch(() => null),
           ]);
           if (dbProducts && Array.isArray(dbProducts)) dispatch({ type: 'SET_PRODUCTS', payload: dbProducts });
           if (dbSales && Array.isArray(dbSales)) dispatch({ type: 'SET_SALES', payload: dbSales });
           if (dbMovements && Array.isArray(dbMovements)) dispatch({ type: 'SET_MOVEMENTS', payload: dbMovements });
+          if (dbSuppliers && Array.isArray(dbSuppliers) && dbSuppliers.length > 0) {
+            dispatch({ type: 'SET_SUPPLIERS', payload: dbSuppliers });
+          }
+          if (dbPurchases && Array.isArray(dbPurchases) && dbPurchases.length > 0) {
+            dispatch({ type: 'SET_PURCHASES', payload: dbPurchases });
+          }
+          if (dbCategories && Array.isArray(dbCategories) && dbCategories.length > 0) {
+            dispatch({ type: 'SET_CATEGORIES', payload: dbCategories });
+          }
+          if (dbCashMovements && Array.isArray(dbCashMovements) && dbCashMovements.length > 0) {
+            dispatch({ type: 'SET_CASH_MOVEMENTS', payload: dbCashMovements });
+          }
         }
       } catch {
         setBackendOnline(false);
@@ -614,6 +1070,9 @@ export function AppProvider({ children }) {
       localStorage.setItem('dassel_sales', JSON.stringify(state.sales));
       localStorage.setItem('dassel_movements', JSON.stringify(state.movements));
       localStorage.setItem('dassel_cash_movements', JSON.stringify(state.cashMovements));
+      localStorage.setItem('dassel_categories', JSON.stringify(state.categories));
+      localStorage.setItem('dassel_suppliers', JSON.stringify(state.suppliers));
+      localStorage.setItem('dassel_purchases', JSON.stringify(state.purchases));
     } catch (e) {
       console.warn('LocalStorage save error:', e);
     }
@@ -745,7 +1204,18 @@ export function AppProvider({ children }) {
     dispatch({ type: 'CANCEL_SALE', payload: id });
   };
 
-  const addCashMovement = (data) => {
+  const addCashMovement = async (data) => {
+    if (backendOnline) {
+      try {
+        const created = await api.createCashMovement(data);
+        if (created) {
+          dispatch({ type: 'ADD_CASH_MOVEMENT', payload: created });
+          return created;
+        }
+      } catch (err) {
+        console.warn('Fallo al registrar movimiento de caja en backend:', err);
+      }
+    }
     dispatch({ type: 'ADD_CASH_MOVEMENT', payload: data });
   };
 
@@ -895,6 +1365,156 @@ export function AppProvider({ children }) {
     document.body.removeChild(link);
   };
 
+  // Operaciones de Compras
+  const addPurchase = async (purchaseData) => {
+    if (backendOnline) {
+      try {
+        const created = await api.createPurchase(purchaseData);
+        if (created) {
+          dispatch({ type: 'ADD_PURCHASE', payload: created });
+          // Sincronizar existencias y Kardex actualizados en backend
+          const [updatedProds, updatedMoves, updatedCash] = await Promise.all([
+            api.getProducts().catch(() => null),
+            api.getMovements().catch(() => null),
+            api.getCashMovements().catch(() => null),
+          ]);
+          if (updatedProds) dispatch({ type: 'SET_PRODUCTS', payload: updatedProds });
+          if (updatedMoves) dispatch({ type: 'SET_MOVEMENTS', payload: updatedMoves });
+          if (updatedCash) dispatch({ type: 'SET_CASH_MOVEMENTS', payload: updatedCash });
+          return created;
+        }
+      } catch (err) {
+        console.warn('Fallo al registrar compra en backend:', err);
+      }
+    }
+    dispatch({ type: 'ADD_PURCHASE', payload: purchaseData });
+  };
+
+  const cancelPurchase = async (id) => {
+    if (backendOnline) {
+      try {
+        await api.cancelPurchase(id);
+        const [updatedProds, updatedMoves, updatedCash] = await Promise.all([
+          api.getProducts().catch(() => null),
+          api.getMovements().catch(() => null),
+          api.getCashMovements().catch(() => null),
+        ]);
+        if (updatedProds) dispatch({ type: 'SET_PRODUCTS', payload: updatedProds });
+        if (updatedMoves) dispatch({ type: 'SET_MOVEMENTS', payload: updatedMoves });
+        if (updatedCash) dispatch({ type: 'SET_CASH_MOVEMENTS', payload: updatedCash });
+      } catch (err) {
+        console.warn('Fallo al anular compra en backend:', err);
+      }
+    }
+    dispatch({ type: 'CANCEL_PURCHASE', payload: id });
+  };
+
+  const getNextPurchaseNumber = () => {
+    const maxNum = (state.purchases || []).reduce((max, p) => {
+      const parts = (p.purchaseNumber || '').split('-');
+      const num = parseInt(parts[parts.length - 1], 10);
+      return !isNaN(num) && num > max ? num : max;
+    }, 0);
+    return `COM-${String(maxNum + 1).padStart(4, '0')}`;
+  };
+
+  // Operaciones de Proveedores
+  const addSupplier = async (supplierData) => {
+    if (backendOnline) {
+      try {
+        const created = await api.createSupplier(supplierData);
+        if (created) {
+          dispatch({ type: 'ADD_SUPPLIER', payload: created });
+          return created;
+        }
+      } catch (err) {
+        console.warn('Fallo al guardar proveedor en backend:', err);
+      }
+    }
+    dispatch({ type: 'ADD_SUPPLIER', payload: supplierData });
+  };
+
+  const updateSupplier = async (id, updates) => {
+    if (backendOnline) {
+      try {
+        await api.updateSupplier(id, updates);
+      } catch (err) {
+        console.warn('Fallo al actualizar proveedor en backend:', err);
+      }
+    }
+    dispatch({ type: 'UPDATE_SUPPLIER', payload: { id, updates } });
+  };
+
+  const deleteSupplier = async (id) => {
+    if (backendOnline) {
+      try {
+        await api.deleteSupplier(id);
+      } catch (err) {
+        console.warn('Fallo al eliminar proveedor en backend:', err);
+      }
+    }
+    dispatch({ type: 'DELETE_SUPPLIER', payload: id });
+  };
+
+  const getNextSupplierCode = () => {
+    const maxNum = (state.suppliers || []).reduce((max, s) => {
+      const parts = (s.code || '').split('-');
+      const num = parseInt(parts[parts.length - 1], 10);
+      return !isNaN(num) && num > max ? num : max;
+    }, 0);
+    return `PROV-${String(maxNum + 1).padStart(3, '0')}`;
+  };
+
+  // Operaciones de Categorías & Subcategorías
+  const addCategory = async (categoryData) => {
+    if (backendOnline) {
+      try {
+        const created = await api.createCategory(categoryData);
+        if (created) {
+          dispatch({ type: 'ADD_CATEGORY', payload: created });
+          return created;
+        }
+      } catch (err) {
+        console.warn('Fallo al guardar categoría en backend:', err);
+      }
+    }
+    dispatch({ type: 'ADD_CATEGORY', payload: categoryData });
+  };
+
+  const updateCategory = async (id, data) => {
+    if (backendOnline) {
+      try {
+        await api.updateCategory(id, data);
+      } catch (err) {
+        console.warn('Fallo al actualizar categoría en backend:', err);
+      }
+    }
+    dispatch({ type: 'UPDATE_CATEGORY', payload: { id, data } });
+  };
+
+  const deleteCategory = async (id) => {
+    if (backendOnline) {
+      try {
+        await api.deleteCategory(id);
+      } catch (err) {
+        console.warn('Fallo al eliminar categoría en backend:', err);
+      }
+    }
+    dispatch({ type: 'DELETE_CATEGORY', payload: id });
+  };
+
+  const addSubcategory = (categoryId, subcategory) => {
+    dispatch({ type: 'ADD_SUBCATEGORY', payload: { categoryId, subcategory } });
+  };
+
+  const updateSubcategory = (categoryId, oldName, newName) => {
+    dispatch({ type: 'UPDATE_SUBCATEGORY', payload: { categoryId, oldName, newName } });
+  };
+
+  const deleteSubcategory = (categoryId, subcategory) => {
+    dispatch({ type: 'DELETE_SUBCATEGORY', payload: { categoryId, subcategory } });
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -902,7 +1522,13 @@ export function AppProvider({ children }) {
         sales: state.sales,
         movements: state.movements,
         cashMovements: state.cashMovements,
+        categories: state.categories || initialCategories,
+        suppliers: state.suppliers || initialSuppliers,
+        purchases: state.purchases || initialPurchases,
         backendOnline,
+        currentUser,
+        login,
+        logout,
         currentTheme,
         changeTheme,
         themeMode,
@@ -921,6 +1547,19 @@ export function AppProvider({ children }) {
         getStats,
         exportProductsCSV,
         exportSalesCSV,
+        addPurchase,
+        cancelPurchase,
+        getNextPurchaseNumber,
+        addSupplier,
+        updateSupplier,
+        deleteSupplier,
+        getNextSupplierCode,
+        addCategory,
+        updateCategory,
+        deleteCategory,
+        addSubcategory,
+        updateSubcategory,
+        deleteSubcategory,
       }}
     >
       {children}

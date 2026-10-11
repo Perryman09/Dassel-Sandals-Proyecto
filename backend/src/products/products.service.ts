@@ -97,9 +97,11 @@ export class ProductsService {
         const activeSizes = Object.entries(dto.sizesStock)
           .filter(([_, q]) => Number(q) > 0)
           .map(([sz]) => sz)
-          .sort();
+          .sort((a, b) => Number(a) - Number(b));
         if (activeSizes.length > 0) {
-          computedSize = `${activeSizes[0]}-${activeSizes[activeSizes.length - 1]}`;
+          computedSize = activeSizes.length === 1
+            ? `US ${activeSizes[0]}`
+            : `US ${activeSizes[0]}-${activeSizes[activeSizes.length - 1]}`;
         }
       }
     }

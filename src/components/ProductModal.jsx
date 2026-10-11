@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { X, Save, Layers } from 'lucide-react';
-import { useApp, SUBCATEGORIES, SHOE_SIZES } from '../context/AppContext';
+import { X, Save, Layers, Settings, FolderPlus } from 'lucide-react';
+import { useApp, SHOE_SIZES_EUR, SHOE_SIZES_US } from '../context/AppContext';
+import CategoryModal from './CategoryModal';
 
 const emptyProduct = {
   name: '',
@@ -35,8 +36,19 @@ const parseSizes = (p) => {
 };
 
 export default function ProductModal({ product, onClose, onSaved }) {
-  const { addProduct, updateProduct, getNextCode } = useApp();
+  const { addProduct, updateProduct, getNextCode, categories } = useApp();
   const isEdit = !!product;
+
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+
+  // Determinar sistema de tallas por defecto si ya tiene datos
+  const [sizeSystem, setSizeSystem] = useState(() => {
+    if (product?.sizesStock) {
+      const keys = Object.keys(parseSizes(product));
+      if (keys.some(k => SHOE_SIZES_EUR.includes(k))) return 'eur';
+    }
+    return 'eur'; // Tacones EUR por defecto para Dassel Sandals
+  });
 
   const [form, setForm] = useState(() => {
     if (isEdit && product) {
@@ -61,7 +73,7 @@ export default function ProductModal({ product, onClose, onSaved }) {
       if (field === 'category') {
         next.subcategory = '';
         next.size = '';
-        if (value === 'joyas') {
+        if (value !== 'zapatos') {
           next.sizesStock = {};
         }
       }
@@ -70,7 +82,7 @@ export default function ProductModal({ product, onClose, onSaved }) {
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
   };
 
-  // Manejo de la matriz de tallas para zapatos
+  // Manejo de la matriz de tallas para calzado / tacones
   const handleSizeStockChange = (size, qtyStr) => {
     const qty = Math.max(0, parseInt(qtyStr, 10) || 0);
     const updatedSizes = {
@@ -121,8 +133,13 @@ export default function ProductModal({ product, onClose, onSaved }) {
         .filter(([_, q]) => Number(q) > 0)
         .map(([sz]) => sz)
         .sort((a, b) => Number(a) - Number(b));
+
       if (activeSizes.length > 0 && !computedSize) {
-        computedSize = activeSizes.length === 1 ? `Talla ${activeSizes[0]}` : `${activeSizes[0]}-${activeSizes[activeSizes.length - 1]}`;
+        const isEur = activeSizes.some(s => Number(s) >= 30);
+        const prefix = isEur ? 'EUR' : 'US';
+        computedSize = activeSizes.length === 1
+          ? `${prefix} ${activeSizes[0]}`
+          : `${prefix} ${activeSizes[0]}-${activeSizes[activeSizes.length - 1]}`;
       }
     }
 
@@ -148,99 +165,165 @@ export default function ProductModal({ product, onClose, onSaved }) {
     onClose();
   };
 
-  const subs = SUBCATEGORIES[form.category] || [];
+  const currentCatObj = categories.find(c => c.id === form.category);
+  const subs = (currentCatObj?.subcategories) || [];
+
+  const sizesToShow =
+    sizeSystem === 'eur'
+      ? SHOE_SIZES_EUR
+      : sizeSystem === 'us'
+      ? SHOE_SIZES_US
+      : [...SHOE_SIZES_EUR, ...SHOE_SIZES_US];
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{isEdit ? 'Editar Producto' : 'Nuevo Producto'}</h2>
-          <button className="icon-btn" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body">
-            {isEdit && (
-              <div className="form-group">
-                <label>Código Asignado</label>
-                <input value={form.code} disabled className="input-disabled" />
-              </div>
-            )}
-            {!isEdit && (
-              <div className="form-row info-banner">
-                <p>
-                  📋 Folio automático: <strong>{getNextCode(form.category)}</strong> · Moneda oficial: <strong>Córdobas (C$)</strong>
-                </p>
-              </div>
-            )}
-
-            <div className="form-row">
-              <div className="form-group flex-2">
-                <label>Nombre del Producto *</label>
-                <input
-                  value={form.name}
-                  onChange={e => set('name', e.target.value)}
-                  placeholder="Ej: Sandalia Maya Artesanal"
-                />
-                {errors.name && <span className="field-error">{errors.name}</span>}
-              </div>
-              <div className="form-group">
-                <label>Estado</label>
-                <select value={form.status} onChange={e => set('status', e.target.value)}>
-                  <option value="active">Activo</option>
-                  <option value="inactive">Inactivo</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>Categoría *</label>
-                <select value={form.category} onChange={e => set('category', e.target.value)}>
-                  <option value="zapatos">👡 Zapatos &amp; Sandalias</option>
-                  <option value="joyas">💎 Joyas &amp; Accesorios</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Subcategoría *</label>
-                <select value={form.subcategory} onChange={e => set('subcategory', e.target.value)}>
-                  <option value="">Seleccionar...</option>
-                  {subs.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-                {errors.subcategory && <span className="field-error">{errors.subcategory}</span>}
-              </div>
-            </div>
-
-            {/* MATRIZ DE TALLAS PARA CALZADO */}
-            {form.category === 'zapatos' && (
-              <div className="shoe-sizes-matrix-container">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: 'var(--accent)' }}>
-                    <Layers size={16} /> Matriz de Tallas (Existencias por número)
-                  </label>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    Total calculado: <strong>{form.stock || 0} pares</strong>
-                  </span>
+    <>
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2>{isEdit ? 'Editar Producto' : 'Nuevo Producto'}</h2>
+            <button className="icon-btn" onClick={onClose}>
+              <X size={20} />
+            </button>
+          </div>
+          <form onSubmit={handleSubmit}>
+            <div className="modal-body">
+              {isEdit && (
+                <div className="form-group">
+                  <label>Código Asignado</label>
+                  <input value={form.code} disabled className="input-disabled" />
                 </div>
-                <div className="shoe-sizes-matrix-grid">
-                  {SHOE_SIZES.map(sz => (
-                    <div key={sz} className="shoe-size-cell">
-                      <span className="size-label"># {sz}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={form.sizesStock?.[sz] !== undefined ? form.sizesStock[sz] : ''}
-                        onChange={e => handleSizeStockChange(sz, e.target.value)}
-                        placeholder="0"
-                      />
+              )}
+              {!isEdit && (
+                <div className="form-row info-banner">
+                  <p>
+                    📋 Folio automático: <strong>{getNextCode(form.category)}</strong> · Moneda oficial: <strong>Córdobas (C$)</strong>
+                  </p>
+                </div>
+              )}
+
+              <div className="form-row">
+                <div className="form-group flex-2">
+                  <label>Nombre del Producto *</label>
+                  <input
+                    value={form.name}
+                    onChange={e => set('name', e.target.value)}
+                    placeholder="Ej: Tacón Stiletto Charol / Sandalia Maya"
+                  />
+                  {errors.name && <span className="field-error">{errors.name}</span>}
+                </div>
+                <div className="form-group">
+                  <label>Estado</label>
+                  <select value={form.status} onChange={e => set('status', e.target.value)}>
+                    <option value="active">Activo</option>
+                    <option value="inactive">Inactivo</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label>Categoría *</label>
+                    <button
+                      type="button"
+                      className="btn-link"
+                      onClick={() => setShowCategoryModal(true)}
+                      style={{ fontSize: '0.75rem', color: 'var(--accent)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}
+                    >
+                      <FolderPlus size={12} /> Gestionar
+                    </button>
+                  </div>
+                  <select value={form.category} onChange={e => set('category', e.target.value)}>
+                    {categories.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.icon || '📁'} {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label>Subcategoría *</label>
+                    <button
+                      type="button"
+                      className="btn-link"
+                      onClick={() => setShowCategoryModal(true)}
+                      style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textDecoration: 'none' }}
+                    >
+                      + Editar
+                    </button>
+                  </div>
+                  <select value={form.subcategory} onChange={e => set('subcategory', e.target.value)}>
+                    <option value="">Seleccionar...</option>
+                    {subs.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                  {errors.subcategory && <span className="field-error">{errors.subcategory}</span>}
+                </div>
+              </div>
+
+              {/* MATRIZ DE TALLAS PARA CALZADO / TACONES */}
+              {form.category === 'zapatos' && (
+                <div className="shoe-sizes-matrix-container">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: 'var(--accent)' }}>
+                      <Layers size={16} /> Matriz de Tallas (Tacones &amp; Calzado)
+                    </label>
+
+                    {/* SELECTOR DE SISTEMA DE TALLAS */}
+                    <div className="size-system-selector">
+                      <button
+                        type="button"
+                        className={`size-sys-btn ${sizeSystem === 'eur' ? 'active' : ''}`}
+                        onClick={() => setSizeSystem('eur')}
+                      >
+                        👠 Tacones EUR (35 al 42)
+                      </button>
+                      <button
+                        type="button"
+                        className={`size-sys-btn ${sizeSystem === 'us' ? 'active' : ''}`}
+                        onClick={() => setSizeSystem('us')}
+                      >
+                        👟 US (4 al 11)
+                      </button>
+                      <button
+                        type="button"
+                        className={`size-sys-btn ${sizeSystem === 'all' ? 'active' : ''}`}
+                        onClick={() => setSizeSystem('all')}
+                      >
+                        Todas
+                      </button>
                     </div>
-                  ))}
+
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      Total calculado: <strong>{form.stock || 0} pares</strong>
+                    </span>
+                  </div>
+
+                  <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
+                    💡 <em>Tacones y plataformas importados usan EUR (35 al 42). Sandalias planas y calzado US usan 4 al 11.</em>
+                  </p>
+
+                  <div className="shoe-sizes-matrix-grid">
+                    {sizesToShow.map(sz => {
+                      const isEurSize = SHOE_SIZES_EUR.includes(sz);
+                      return (
+                        <div key={sz} className="shoe-size-cell">
+                          <span className="size-label">{isEurSize ? `EUR #${sz}` : `US #${sz}`}</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={form.sizesStock?.[sz] !== undefined ? form.sizesStock[sz] : ''}
+                            onChange={e => handleSizeStockChange(sz, e.target.value)}
+                            placeholder="0"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             <div className="form-row">
               <div className="form-group">
@@ -330,5 +413,9 @@ export default function ProductModal({ product, onClose, onSaved }) {
         </form>
       </div>
     </div>
+    {showCategoryModal && (
+      <CategoryModal onClose={() => setShowCategoryModal(false)} />
+    )}
+  </>
   );
 }

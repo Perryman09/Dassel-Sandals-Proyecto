@@ -2,16 +2,18 @@ import { useState, useEffect } from 'react';
 import {
   Search, Plus, Edit, Trash2, ArrowUp, ArrowDown, Filter,
   Package, AlertTriangle, XCircle, Minus, ChevronLeft, ChevronRight,
-  Download, Tag, History, Layers, CheckCircle, X
+  Download, Tag, History, Layers, CheckCircle, X, Folder
 } from 'lucide-react';
-import { useApp, SHOE_SIZES } from '../context/AppContext';
+import { useApp, SHOE_SIZES, SHOE_SIZES_EUR, SHOE_SIZES_US } from '../context/AppContext';
 import { formatCurrency } from '../utils/format';
 import ProductModal from './ProductModal';
 import BarcodeModal from './BarcodeModal';
 import MovementsModal from './MovementsModal';
+import CategoryModal from './CategoryModal';
 
 export default function Inventory() {
-  const { products, deleteProduct, adjustStock, exportProductsCSV } = useApp();
+  const { products, deleteProduct, adjustStock, exportProductsCSV, categories } = useApp();
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -24,7 +26,7 @@ export default function Inventory() {
   const [adjustModal, setAdjustModal] = useState(null);
   const [adjustQty, setAdjustQty] = useState('');
   const [adjustReason, setAdjustReason] = useState('Recepción de mercancía / Proveedor');
-  const [adjustSelectedSize, setAdjustSelectedSize] = useState('24');
+  const [adjustSelectedSize, setAdjustSelectedSize] = useState('7');
   const [adjustMode, setAdjustMode] = useState('single');
   const [multiAdjustSizes, setMultiAdjustSizes] = useState({});
   const [notification, setNotification] = useState(null);
@@ -187,6 +189,9 @@ export default function Inventory() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button className="btn btn-outline" onClick={() => setShowCategoryModal(true)}>
+            <Folder size={16} /> Categorías &amp; Subcategorías
+          </button>
           <button className="btn btn-ghost" onClick={() => setShowMovements(true)}>
             <History size={16} /> Movimientos (Kardex)
           </button>
@@ -211,8 +216,11 @@ export default function Inventory() {
         </div>
         <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}>
           <option value="all">Todas las categorías</option>
-          <option value="zapatos">👡 Zapatos y Sandalias</option>
-          <option value="joyas">💎 Joyería y Accesorios</option>
+          {categories.map(c => (
+            <option key={c.id} value={c.id}>
+              {c.icon || '📁'} {c.name}
+            </option>
+          ))}
         </select>
         <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
           <option value="all">Todos los estados</option>
@@ -475,13 +483,13 @@ export default function Inventory() {
                                 style={{ padding: '6px 12px', fontSize: '0.82rem' }}
                                 onClick={() => setAdjustSelectedSize(sz)}
                               >
-                                #{sz} ({curStock} pzas)
+                                US #{sz} ({curStock} pzas)
                               </button>
                             );
                           })}
                         </div>
                         <small style={{ color: 'var(--text-muted)' }}>
-                          Existencia actual de <strong>Talla #{adjustSelectedSize}</strong>: {parseSizes(adjustModal)[adjustSelectedSize] ?? 0} pares
+                          Existencia actual de <strong>Talla US #{adjustSelectedSize}</strong>: {parseSizes(adjustModal)[adjustSelectedSize] ?? 0} pares
                         </small>
                       </div>
 
@@ -530,7 +538,7 @@ export default function Inventory() {
                           fontSize: '0.85rem'
                         }}>
                           <div>
-                            Talla #{adjustSelectedSize}: de <strong>{parseSizes(adjustModal)[adjustSelectedSize] ?? 0}</strong> pasará a{' '}
+                            Talla {Number(adjustSelectedSize) >= 30 ? 'EUR' : 'US'} #{adjustSelectedSize}: de <strong>{parseSizes(adjustModal)[adjustSelectedSize] ?? 0}</strong> pasará a{' '}
                             <strong style={{ color: parseInt(adjustQty, 10) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                               {Math.max(0, (Number(parseSizes(adjustModal)[adjustSelectedSize]) || 0) + parseInt(adjustQty, 10))} pares
                             </strong>
@@ -544,17 +552,18 @@ export default function Inventory() {
                   ) : (
                     <div>
                       <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 10 }}>
-                        Ingresa cuántos pares sumar (+) o restar (-) en cada número:
+                        Ingresa cuántos pares sumar (+) o restar (-) en cada número (EUR o US):
                       </p>
                       <div className="shoe-sizes-matrix-grid" style={{ marginBottom: 12 }}>
                         {SHOE_SIZES.map(sz => {
+                          const isEur = Number(sz) >= 30;
                           const curStock = Number(parseSizes(adjustModal)[sz]) || 0;
                           const delta = multiAdjustSizes[sz] !== undefined ? multiAdjustSizes[sz] : '';
                           const intDelta = parseInt(delta, 10) || 0;
                           const finalSz = Math.max(0, curStock + intDelta);
                           return (
                             <div key={sz} className="shoe-size-cell" style={{ padding: 6, background: 'var(--bg-tertiary)', borderRadius: 6 }}>
-                              <span className="size-label"># {sz}</span>
+                              <span className="size-label">{isEur ? `EUR #${sz}` : `US #${sz}`}</span>
                               <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>Act: {curStock}</small>
                               <input
                                 type="number"
@@ -660,6 +669,11 @@ export default function Inventory() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* MODAL DE GESTIÓN DE CATEGORÍAS */}
+      {showCategoryModal && (
+        <CategoryModal onClose={() => setShowCategoryModal(false)} />
       )}
     </div>
   );

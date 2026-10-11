@@ -2,9 +2,10 @@ import { useState } from 'react';
 import {
   Search, Plus, Minus, X, ShoppingCart, Trash2,
   CreditCard, Banknote, ArrowRightLeft, CheckCircle, User,
-  Phone, Printer, Sparkles, Tag, Layers, AlertTriangle
+  Phone, Printer, Sparkles, Tag, Layers, AlertTriangle,
+  Calculator, RotateCcw, FileText
 } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import { useApp, getWholesaleTier } from '../context/AppContext';
 import { formatCurrency } from '../utils/format';
 import ReceiptModal from './ReceiptModal';
 
@@ -18,8 +19,10 @@ export default function NewSale({ onNavigate }) {
   const [customerPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
   const [cashReceived, setCashReceived] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
   const [completedSale, setCompletedSale] = useState(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [showNumpad, setShowNumpad] = useState(true);
 
   // Modal para seleccionar talla de zapato antes de meter al carrito
   const [sizePickerProduct, setSizePickerProduct] = useState(null);
@@ -103,19 +106,81 @@ export default function NewSale({ onNavigate }) {
 
   // Cálculo estrictamente numérico del subtotal
   const subtotal = cart.reduce((acc, i) => acc + (Number(i.subtotal) || 0), 0);
-  const discountAmount = Math.max(0, Number(discount) || 0);
-  const total = Math.max(0, subtotal - discountAmount);
+
+  // Cálculo de Descuento de Mayoreo oficial (Calzado & Joyas):
+  // De 3 a 4 piezas -> 5%
+  // De 5 a 7 piezas -> 10%
+  // De 8 a más piezas -> 15%
+  const totalPiecesInCart = cart.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0);
+  const wholesaleTier = getWholesaleTier(totalPiecesInCart);
+  const wholesalePct = wholesaleTier.percent;
+  const wholesaleDiscountAmount = (subtotal * wholesalePct) / 100;
+
+  const manualDiscountAmount = Math.max(0, Number(discount) || 0);
+  const totalDiscount = wholesaleDiscountAmount + manualDiscountAmount;
+  const total = Math.max(0, subtotal - totalDiscount);
   const receivedNum = Number(cashReceived) || 0;
+
+  // Validaciones de cobro en Efectivo
+  const isCashEmpty = paymentMethod === 'Efectivo' && (!cashReceived || receivedNum <= 0);
   const isCashShort = paymentMethod === 'Efectivo' && receivedNum > 0 && receivedNum < total;
   const cashShortage = isCashShort ? total - receivedNum : 0;
   const changeDue = paymentMethod === 'Efectivo' && receivedNum >= total ? receivedNum - total : 0;
+  const isCashValid = paymentMethod !== 'Efectivo' || (receivedNum >= total && !isCashEmpty);
+
+  // Manejador del Teclado Numérico Táctil
+  const handleNumpadPress = (val) => {
+    if (val === 'CLEAR') {
+      setCashReceived('');
+      return;
+    }
+    if (val === 'BACKSPACE') {
+      setCashReceived(prev => {
+        const s = String(prev || '');
+        return s.slice(0, -1);
+      });
+      return;
+    }
+    if (val === 'EXACT') {
+      setCashReceived(String(total));
+      return;
+    }
+    if (val === '.') {
+      setCashReceived(prev => {
+        const s = String(prev || '');
+        if (s.includes('.')) return s;
+        return s === '' ? '0.' : s + '.';
+      });
+      return;
+    }
+    // Agregar dígito numérico
+    setCashReceived(prev => {
+      const s = String(prev || '');
+      if (s === '0' && val !== '.') return String(val);
+      if (s.includes('.')) {
+        const [_, dec] = s.split('.');
+        if (dec && dec.length >= 2) return s;
+      }
+      return s + String(val);
+    });
+  };
+
+  const handleQuickBill = (amount) => {
+    setCashReceived(String(amount));
+  };
 
   const handleCompleteSale = () => {
     if (cart.length === 0) return;
 
-    if (paymentMethod === 'Efectivo' && receivedNum > 0 && receivedNum < total) {
-      alert(`⚠️ Monto insuficiente: El cliente entregó ${formatCurrency(receivedNum)}, pero el total es ${formatCurrency(total)}. Faltan ${formatCurrency(total - receivedNum)} para completar el cobro.`);
-      return;
+    if (paymentMethod === 'Efectivo') {
+      if (isCashEmpty) {
+        alert('⚠️ Monto requerido: Debes ingresar el monto de efectivo entregado por el cliente (o presionar el botón "Pago Exacto") antes de procesar el cobro.');
+        return;
+      }
+      if (isCashShort) {
+        alert(`⚠️ Monto insuficiente: El cliente entregó ${formatCurrency(receivedNum)}, pero el total es ${formatCurrency(total)}. Faltan ${formatCurrency(cashShortage)} para completar el cobro.`);
+        return;
+      }
     }
 
     const saleNumber = getNextSaleNumber();
@@ -133,9 +198,12 @@ export default function NewSale({ onNavigate }) {
         subtotal: Number(subtotal) || 0,
       })),
       subtotal: Number(subtotal) || 0,
-      discount: discountAmount,
+      wholesalePct,
+      wholesaleDiscount: wholesaleDiscountAmount,
+      discount: totalDiscount,
       total: Number(total) || 0,
       paymentMethod,
+      paymentReference: paymentReference.trim() || null,
       receivedAmount: paymentMethod === 'Efectivo' && receivedNum >= total ? receivedNum : null,
       customerName: customerName.trim() || 'Cliente General',
       customerPhone: customerPhone.trim() || null,
@@ -149,6 +217,7 @@ export default function NewSale({ onNavigate }) {
     setCustomerName('');
     setCustomerPhone('');
     setCashReceived('');
+    setPaymentReference('');
   };
 
   if (completedSale) {
@@ -312,7 +381,7 @@ export default function NewSale({ onNavigate }) {
                           <strong>{item.productName}</strong>
                           {item.selectedSize && (
                             <span className="badge badge-sm badge-info" style={{ marginLeft: 6 }}>
-                              Talla {item.selectedSize}
+                              Talla US #{item.selectedSize}
                             </span>
                           )}
                         </div>
@@ -392,89 +461,205 @@ export default function NewSale({ onNavigate }) {
                 </div>
               </div>
 
-              {paymentMethod === 'Efectivo' && (
-                <div style={{ marginTop: 6, marginBottom: 8 }}>
-                  <div className="form-row" style={{ gap: 8 }}>
-                    <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                      <label>Efectivo Recibido (C$)</label>
-                      <input
-                        type="number"
-                        value={cashReceived}
-                        onChange={e => setCashReceived(e.target.value)}
-                        placeholder="Monto entregado"
-                      />
-                    </div>
-                    {receivedNum >= total && receivedNum > 0 && (
-                      <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                        <label>Cambio a Devolver</label>
-                        <input
-                          disabled
-                          className="input-disabled"
-                          value={formatCurrency(changeDue)}
-                          style={{
-                            color: 'var(--success)',
-                            fontWeight: 800,
-                          }}
-                        />
+              {paymentMethod === 'Efectivo' ? (
+                <div className="pos-cash-module">
+                  {/* Fila con Input y Visualizador de Cambio */}
+                  <div className="form-row" style={{ gap: 8, alignItems: 'flex-start' }}>
+                    <div className="form-group" style={{ flex: 1.2, marginBottom: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <label style={{ marginBottom: 0 }}>Efectivo Recibido (C$) *</label>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          style={{ padding: '1px 6px', fontSize: '0.68rem', height: 20 }}
+                          onClick={() => setShowNumpad(v => !v)}
+                          title="Mostrar/Ocultar teclado táctil"
+                        >
+                          <Calculator size={11} /> {showNumpad ? 'Ocultar Numpad' : 'Ver Numpad'}
+                        </button>
                       </div>
-                    )}
+                      <div className="cash-input-wrap">
+                        <input
+                          type="number"
+                          className={`cash-input ${isCashShort ? 'short' : isCashValid && cashReceived ? 'valid' : ''}`}
+                          value={cashReceived}
+                          onChange={e => setCashReceived(e.target.value)}
+                          placeholder="0.00"
+                          step="any"
+                        />
+                        {cashReceived && (
+                          <button
+                            type="button"
+                            className="cash-clear-btn"
+                            onClick={() => handleNumpadPress('CLEAR')}
+                            title="Limpiar monto"
+                          >
+                            <X size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                      <label style={{ marginBottom: 4 }}>
+                        {isCashShort ? 'Faltante de Pago' : 'Cambio / Vuelto'}
+                      </label>
+                      <div
+                        className={`change-display-badge ${
+                          isCashShort ? 'short' : changeDue > 0 ? 'positive' : isCashEmpty ? 'empty' : 'exact'
+                        }`}
+                      >
+                        {isCashShort ? (
+                          <span>- {formatCurrency(cashShortage)}</span>
+                        ) : changeDue > 0 ? (
+                          <span>+ {formatCurrency(changeDue)}</span>
+                        ) : isCashEmpty ? (
+                          <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>Esperando monto</span>
+                        ) : (
+                          <span>Pago Exacto</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* ADVERTENCIA DE MONTO INSUFICIENTE */}
                   {isCashShort && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '8px 10px',
-                        borderRadius: 6,
-                        background: 'rgba(239, 68, 68, 0.12)',
-                        border: '1px solid rgba(239, 68, 68, 0.35)',
-                        color: 'var(--danger)',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        marginTop: 6,
-                      }}
-                    >
-                      <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+                    <div className="cash-alert-banner shortage">
+                      <AlertTriangle size={15} style={{ flexShrink: 0 }} />
                       <span>
                         ⚠️ Monto insuficiente: Faltan <strong>{formatCurrency(cashShortage)}</strong> para completar el pago.
                       </span>
                     </div>
                   )}
 
-                  {/* BOTONES RÁPIDOS DE EFECTIVO */}
-                  <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                  {/* MENSAJE INFORMATIVO SI ESTÁ VACÍO */}
+                  {isCashEmpty && cart.length > 0 && (
+                    <div className="cash-alert-banner neutral">
+                      <Banknote size={15} style={{ flexShrink: 0 }} />
+                      <span>
+                        💵 Digita el monto en el teclado o pulsa <strong>"Exacto"</strong> para cobrar.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* BOTONES RÁPIDOS DE BILLETES DE NICARAGUA */}
+                  <div className="pos-quick-bills">
                     <button
                       type="button"
-                      className="btn btn-ghost"
-                      style={{ padding: '3px 8px', fontSize: '0.72rem' }}
-                      onClick={() => setCashReceived(String(total))}
+                      className={`quick-bill-btn exact ${receivedNum === total && !isCashEmpty ? 'active' : ''}`}
+                      onClick={() => handleNumpadPress('EXACT')}
                     >
-                      Exacto ({formatCurrency(total)})
+                      💵 Exacto ({formatCurrency(total)})
                     </button>
-                    {[500, 1000, 2000]
-                      .filter(bill => bill > total)
-                      .slice(0, 2)
-                      .map(bill => (
-                        <button
-                          key={bill}
-                          type="button"
-                          className="btn btn-ghost"
-                          style={{ padding: '3px 8px', fontSize: '0.72rem' }}
-                          onClick={() => setCashReceived(String(bill))}
-                        >
-                          Billete C${bill}
+                    {[100, 200, 500, 1000].map(bill => (
+                      <button
+                        key={bill}
+                        type="button"
+                        className={`quick-bill-btn ${receivedNum === bill ? 'active' : ''}`}
+                        onClick={() => handleQuickBill(bill)}
+                      >
+                        C${bill}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* TECLADO NUMÉRICO TÁCTIL (NUMPAD POS) */}
+                  {showNumpad && (
+                    <div className="pos-touch-numpad">
+                      <div className="numpad-row">
+                        {['7', '8', '9'].map(k => (
+                          <button key={k} type="button" className="numpad-btn" onClick={() => handleNumpadPress(k)}>
+                            {k}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="numpad-row">
+                        {['4', '5', '6'].map(k => (
+                          <button key={k} type="button" className="numpad-btn" onClick={() => handleNumpadPress(k)}>
+                            {k}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="numpad-row">
+                        {['1', '2', '3'].map(k => (
+                          <button key={k} type="button" className="numpad-btn" onClick={() => handleNumpadPress(k)}>
+                            {k}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="numpad-row">
+                        <button type="button" className="numpad-btn clear" onClick={() => handleNumpadPress('CLEAR')}>
+                          C
                         </button>
-                      ))}
+                        <button type="button" className="numpad-btn" onClick={() => handleNumpadPress('0')}>
+                          0
+                        </button>
+                        <button type="button" className="numpad-btn backspace" onClick={() => handleNumpadPress('BACKSPACE')}>
+                          ⌫
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* CAMPOS PARA TARJETA O TRANSFERENCIA */
+                <div style={{ marginTop: 6, marginBottom: 8 }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <FileText size={13} />
+                      {paymentMethod === 'Tarjeta' ? 'No. de Voucher / Lote (Opcional)' : 'Referencia de Transferencia (BAC / LAFISE)'}
+                    </label>
+                    <input
+                      value={paymentReference}
+                      onChange={e => setPaymentReference(e.target.value)}
+                      placeholder={paymentMethod === 'Tarjeta' ? 'Ej: Voucher #4521' : 'Ej: Ref. BAC #987654'}
+                    />
                   </div>
                 </div>
               )}
 
+              {/* SECCIÓN DE DESCUENTOS AL POR MAYOR */}
+              <div className="pos-wholesale-section">
+                <div className="wholesale-badge-header">
+                  <span className="wholesale-title">
+                    <Tag size={13} color="var(--accent)" /> Escala de Mayoreo (Calzado &amp; Joyas):
+                  </span>
+                  <div className="wholesale-tiers-row">
+                    <span className={`tier-badge ${wholesalePct === 5 ? 'active' : ''}`}>
+                      3-4 pzas: <strong>5%</strong>
+                    </span>
+                    <span className={`tier-badge ${wholesalePct === 10 ? 'active' : ''}`}>
+                      5-7 pzas: <strong>10%</strong>
+                    </span>
+                    <span className={`tier-badge ${wholesalePct === 15 ? 'active' : ''}`}>
+                      8+ pzas: <strong>15%</strong>
+                    </span>
+                  </div>
+                </div>
+
+                {wholesalePct > 0 ? (
+                  <div className="wholesale-applied-alert">
+                    <Sparkles size={14} color="var(--accent)" />
+                    <span>
+                      🎉 <strong>¡Mayoreo {wholesalePct}% aplicado!</strong> Ahorro de -{formatCurrency(wholesaleDiscountAmount)}
+                    </span>
+                  </div>
+                ) : cart.length > 0 ? (
+                  <div className="wholesale-upsell-tip">
+                    💡 Agrega {wholesaleTier.nextTierPieces} {wholesaleTier.nextTierPieces === 1 ? 'artículo más' : 'artículos más'} para desbloquear <strong>5% de mayoreo</strong>.
+                  </div>
+                ) : null}
+
+                {wholesalePct > 0 && wholesaleTier.nextTierPieces > 0 && (
+                  <div className="wholesale-upsell-tip">
+                    ⭐ Agrega {wholesaleTier.nextTierPieces} {wholesaleTier.nextTierPieces === 1 ? 'más' : 'más'} para subir a <strong>{wholesaleTier.nextPercent}% de descuento</strong>.
+                  </div>
+                )}
+              </div>
+
               <div className="form-group" style={{ marginTop: 6, marginBottom: 4 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ marginBottom: 0 }}>Descuento Especial (C$)</label>
+                  <label style={{ marginBottom: 0 }}>Descuento Adicional Manual (C$)</label>
                   <input
                     type="number"
                     className="discount-input"
@@ -490,9 +675,21 @@ export default function NewSale({ onNavigate }) {
           {/* 3. BARRA INFERIOR FIJA Y SIEMPRE VISIBLE PARA COBRAR */}
           <div className="cart-sticky-bottom">
             <div className="cart-summary-line">
-              <span className="cart-subtotal-text">
-                Subtotal ({cart.reduce((acc, i) => acc + i.quantity, 0)} arts): {formatCurrency(subtotal)}
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span className="cart-subtotal-text">
+                  Subtotal ({totalPiecesInCart} arts): {formatCurrency(subtotal)}
+                </span>
+                {wholesaleDiscountAmount > 0 && (
+                  <span style={{ fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 600 }}>
+                    Mayoreo (-{wholesalePct}%): -{formatCurrency(wholesaleDiscountAmount)}
+                  </span>
+                )}
+                {manualDiscountAmount > 0 && (
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    Desc. Manual: -{formatCurrency(manualDiscountAmount)}
+                  </span>
+                )}
+              </div>
               <div className="cart-total-badge">
                 <span className="cart-total-label">TOTAL:</span>
                 <span className="cart-total-value">{formatCurrency(total)}</span>
@@ -500,18 +697,37 @@ export default function NewSale({ onNavigate }) {
             </div>
 
             <button
-              className={`btn btn-primary btn-lg btn-full btn-cobrar ${isCashShort ? 'btn-danger' : ''}`}
+              className={`btn btn-primary btn-lg btn-full btn-cobrar ${
+                isCashShort ? 'btn-danger' : isCashEmpty && paymentMethod === 'Efectivo' ? 'btn-muted-cobrar' : ''
+              }`}
               onClick={handleCompleteSale}
-              disabled={cart.length === 0 || isCashShort}
-              title={isCashShort ? `Faltan ${formatCurrency(cashShortage)}` : ''}
+              disabled={cart.length === 0 || !isCashValid}
+              title={
+                cart.length === 0
+                  ? 'Agrega productos para cobrar'
+                  : isCashShort
+                  ? `Faltan ${formatCurrency(cashShortage)}`
+                  : isCashEmpty
+                  ? 'Ingresa el efectivo recibido'
+                  : ''
+              }
             >
-              {isCashShort ? (
+              {cart.length === 0 ? (
+                <>
+                  <ShoppingCart size={20} /> Agrega artículos para cobrar
+                </>
+              ) : isCashShort ? (
                 <>
                   <AlertTriangle size={18} /> Faltan {formatCurrency(cashShortage)}
+                </>
+              ) : isCashEmpty ? (
+                <>
+                  <Banknote size={18} /> Ingresa efectivo (o toca "Exacto")
                 </>
               ) : (
                 <>
                   <CheckCircle size={20} /> Cobrar {formatCurrency(total)}
+                  {paymentMethod === 'Efectivo' && changeDue > 0 ? ` (Cambio: ${formatCurrency(changeDue)})` : ''}
                 </>
               )}
             </button>
@@ -536,22 +752,25 @@ export default function NewSale({ onNavigate }) {
                 Elige la talla de <strong>{sizePickerProduct.name}</strong> para agregar al carrito:
               </p>
               <div className="size-selector-grid">
-                {Object.entries(sizePickerProduct.sizesStock || {}).map(([sz, stockCount]) => {
-                  const available = Number(stockCount) > 0;
-                  return (
-                    <button
-                      key={sz}
-                      className={`size-pick-card ${available ? 'available' : 'unavailable'}`}
-                      disabled={!available}
-                      onClick={() => addToCart(sizePickerProduct, sz)}
-                    >
-                      <span className="size-tag-num">Talla {sz}</span>
-                      <small className="size-tag-stock">
-                        {available ? `${stockCount} en stock` : 'Agotada'}
-                      </small>
-                    </button>
-                  );
-                })}
+                {Object.entries(sizePickerProduct.sizesStock || {})
+                  .sort(([a], [b]) => Number(a) - Number(b))
+                  .map(([sz, stockCount]) => {
+                    const available = Number(stockCount) > 0;
+                    const isEur = Number(sz) >= 30;
+                    return (
+                      <button
+                        key={sz}
+                        className={`size-pick-card ${available ? 'available' : 'unavailable'}`}
+                        disabled={!available}
+                        onClick={() => addToCart(sizePickerProduct, sz)}
+                      >
+                        <span className="size-tag-num">{isEur ? `EUR #${sz}` : `US #${sz}`}</span>
+                        <small className="size-tag-stock">
+                          {available ? `${stockCount} en stock` : 'Agotada'}
+                        </small>
+                      </button>
+                    );
+                  })}
               </div>
             </div>
             <div className="modal-actions">

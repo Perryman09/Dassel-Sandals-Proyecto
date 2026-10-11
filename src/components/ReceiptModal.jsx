@@ -21,8 +21,8 @@ export default function ReceiptModal({ sale, onClose }) {
             <div className="receipt-brand">DASSEL SANDALS</div>
             <div className="receipt-subtitle">Calzado &amp; Joyas Finas</div>
             <p className="receipt-info">Boutique &amp; Accesorios</p>
-            <p className="receipt-info">RUC: J0310000123456</p>
-            <p className="receipt-info">Nicaragua · Tel: +505 8899-1234</p>
+            <p className="receipt-info">RUC: 8882903041001S</p>
+            <p className="receipt-info">Nicaragua · Tel: +505 8610 0645</p>
           </div>
 
           <div className="receipt-divider">================================</div>
@@ -73,7 +73,7 @@ export default function ReceiptModal({ sale, onClose }) {
             </div>
             {Number(sale.discount) > 0 && (
               <div className="receipt-total-row">
-                <span>DESCUENTO:</span>
+                <span>{sale.wholesalePct ? `MAYOREO (-${sale.wholesalePct}%):` : 'DESCUENTO:'}</span>
                 <span>-{formatCurrency(sale.discount)}</span>
               </div>
             )}

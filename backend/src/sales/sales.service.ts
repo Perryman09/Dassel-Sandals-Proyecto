@@ -68,6 +68,7 @@ export class SalesService {
       where,
       include: {
         items: true,
+        user: { select: { id: true, username: true, name: true, role: true } },
       },
       orderBy: { date: 'desc' },
     });
@@ -78,6 +79,7 @@ export class SalesService {
       where: { id },
       include: {
         items: true,
+        user: { select: { id: true, username: true, name: true, role: true } },
       },
     });
     if (!sale) {
@@ -148,6 +150,7 @@ export class SalesService {
             quantity: item.quantity,
             remainingStock: newStock,
             productId: product.id,
+            userId: (dto as any).userId || 1,
           },
         });
 
@@ -179,12 +182,14 @@ export class SalesService {
           customerName: dto.customerName?.trim() || 'Cliente General',
           customerPhone: dto.customerPhone?.trim() || null,
           status: 'completed',
+          userId: (dto as any).userId || 1,
           items: {
             create: itemsToCreate,
           },
         },
         include: {
           items: true,
+          user: { select: { id: true, username: true, name: true, role: true } },
         },
       });
 

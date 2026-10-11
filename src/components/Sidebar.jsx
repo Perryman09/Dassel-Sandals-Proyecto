@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   LayoutDashboard, Package, ShoppingCart, FileText,
   BarChart3, Banknote, ChevronLeft, ChevronRight, RotateCcw,
-  Palette, Sun, Moon, Sparkles
+  Palette, Sun, Moon, Truck, LogOut
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { THEMES } from '../utils/theme';
@@ -11,6 +11,7 @@ import CashRegisterModal from './CashRegisterModal';
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
   { id: 'inventory', label: 'Inventario', Icon: Package },
+  { id: 'purchases', label: 'Compras & Proveedores', Icon: Truck },
   { id: 'new-sale', label: 'Nueva Venta', Icon: ShoppingCart },
   { id: 'sales', label: 'Historial Ventas', Icon: FileText },
   { id: 'reports', label: 'Reportes & Finanzas', Icon: BarChart3 },
@@ -24,6 +25,8 @@ export default function Sidebar({ currentPage, onNavigate, collapsed, onToggle }
     changeTheme,
     themeMode,
     toggleThemeMode,
+    currentUser,
+    logout,
   } = useApp();
   const [showCashModal, setShowCashModal] = useState(false);
 
@@ -37,22 +40,86 @@ export default function Sidebar({ currentPage, onNavigate, collapsed, onToggle }
   return (
     <>
       <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
-        <div className="sidebar-header">
-          {!collapsed && (
-            <div className="brand">
-              <div className="brand-icon">DS</div>
-              <div>
-                <h1>Dassel</h1>
-                <span>Sandals &amp; Joyas</span>
+        {/* PARTE SUPERIOR (DE PRIMERO): PERFIL DEL ADMINISTRADOR */}
+        <div className={`sidebar-header ${collapsed ? 'header-collapsed' : 'header-user-top'}`}>
+          {!collapsed ? (
+            <>
+              <div className="sidebar-user-card-header">
+                <div className="sidebar-user-avatar-wrap">
+                  <img
+                    src={currentUser?.avatar || '/dassel-logo.png'}
+                    alt="Logo Dassel"
+                    className="sidebar-user-avatar"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = '/dassel-logo.png';
+                    }}
+                  />
+                  <span className="sidebar-user-online-dot" title="En línea" />
+                </div>
+                <div className="sidebar-user-details">
+                  <span className="sidebar-user-username">@{currentUser?.username || 'Dassel2026'}</span>
+                  <span className="sidebar-user-role-label">Administrador Principal</span>
+                </div>
+                <button
+                  onClick={logout}
+                  className="sidebar-logout-button"
+                  title="Cerrar Sesión"
+                >
+                  <LogOut size={16} />
+                </button>
               </div>
+              <button
+                className="collapse-btn"
+                onClick={onToggle}
+                title="Contraer menú lateral"
+              >
+                <ChevronLeft size={18} />
+              </button>
+            </>
+          ) : (
+            <div className="sidebar-collapsed-top">
+              <div className="sidebar-user-avatar-wrap" style={{ margin: '0 auto 6px auto' }}>
+                <img
+                  src={currentUser?.avatar || '/dassel-logo.png'}
+                  alt="Logo Dassel"
+                  className="sidebar-user-avatar"
+                  title={`@${currentUser?.username || 'Dassel2026'} - Administrador Principal`}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = '/dassel-logo.png';
+                  }}
+                />
+                <span className="sidebar-user-online-dot" />
+              </div>
+              <button
+                onClick={logout}
+                className="icon-btn"
+                style={{
+                  margin: '0 auto 6px auto',
+                  width: 32,
+                  height: 32,
+                  color: 'var(--danger)',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  borderColor: 'rgba(239, 68, 68, 0.25)',
+                }}
+                title="Cerrar Sesión"
+              >
+                <LogOut size={15} />
+              </button>
+              <button
+                className="collapse-btn"
+                onClick={onToggle}
+                style={{ margin: '0 auto' }}
+                title="Expandir menú lateral"
+              >
+                <ChevronRight size={18} />
+              </button>
             </div>
           )}
-          {collapsed && <div className="brand-icon small" title="Dassel Sandals">DS</div>}
-          <button className="collapse-btn" onClick={onToggle} title={collapsed ? 'Expandir' : 'Contraer'}>
-            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-          </button>
         </div>
 
+        {/* NAVEGACIÓN PRINCIPAL */}
         <nav className="sidebar-nav">
           {menuItems.map(({ id, label, Icon }) => (
             <button
@@ -66,7 +133,7 @@ export default function Sidebar({ currentPage, onNavigate, collapsed, onToggle }
             </button>
           ))}
 
-          {/* BOTÓN PARA CONTROL DE CAJA Y SALIDAS MENORES */}
+          {/* CONTROL DE CAJA Y SALIDAS */}
           <button
             className="nav-item highlight-cash"
             onClick={() => setShowCashModal(true)}
@@ -78,6 +145,7 @@ export default function Sidebar({ currentPage, onNavigate, collapsed, onToggle }
           </button>
         </nav>
 
+        {/* PIE DE BARRA LATERAL (MODO OSCURO / CLARO, TEMAS, ESTADO) */}
         {!collapsed ? (
           <div className="sidebar-footer">
             {/* BOTÓN MODO OSCURO / MODO CLARO */}
