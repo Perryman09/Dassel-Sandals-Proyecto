@@ -36,7 +36,7 @@ const parseSizes = (p) => {
 };
 
 export default function ProductModal({ product, onClose, onSaved }) {
-  const { addProduct, updateProduct, getNextCode, categories } = useApp();
+  const { addProduct, updateProduct, getNextCode, categories, isShoeCategory } = useApp();
   const isEdit = !!product;
 
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -67,13 +67,15 @@ export default function ProductModal({ product, onClose, onSaved }) {
 
   const [errors, setErrors] = useState({});
 
+  const isShoe = isShoeCategory(form.category);
+
   const set = (field, value) => {
     setForm(prev => {
       const next = { ...prev, [field]: value };
       if (field === 'category') {
         next.subcategory = '';
         next.size = '';
-        if (value !== 'zapatos') {
+        if (!isShoeCategory(value)) {
           next.sizesStock = {};
         }
       }
@@ -122,13 +124,13 @@ export default function ProductModal({ product, onClose, onSaved }) {
     e.preventDefault();
     if (!validate()) return;
 
-    const hasSizes = form.category === 'zapatos' && form.sizesStock && Object.keys(form.sizesStock).length > 0;
+    const hasSizes = isShoe && form.sizesStock && Object.keys(form.sizesStock).length > 0;
     const totalFromSizes = hasSizes
       ? Object.values(form.sizesStock).reduce((acc, n) => acc + (Number(n) || 0), 0)
       : Number(form.stock) || 0;
 
     let computedSize = form.size;
-    if (form.category === 'zapatos' && hasSizes) {
+    if (isShoe && hasSizes) {
       const activeSizes = Object.entries(form.sizesStock)
         .filter(([_, q]) => Number(q) > 0)
         .map(([sz]) => sz)
@@ -150,7 +152,7 @@ export default function ProductModal({ product, onClose, onSaved }) {
       stock: totalFromSizes,
       minStock: Number(form.minStock) || 5,
       size: computedSize || '',
-      sizesStock: form.category === 'zapatos' ? (hasSizes ? form.sizesStock : null) : null,
+      sizesStock: isShoe ? (hasSizes ? form.sizesStock : null) : null,
     };
 
     if (isEdit) {
@@ -264,7 +266,7 @@ export default function ProductModal({ product, onClose, onSaved }) {
               </div>
 
               {/* MATRIZ DE TALLAS PARA CALZADO / TACONES */}
-              {form.category === 'zapatos' && (
+              {isShoe && (
                 <div className="shoe-sizes-matrix-container">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: 'var(--accent)' }}>
@@ -377,7 +379,7 @@ export default function ProductModal({ product, onClose, onSaved }) {
                 />
                 {errors.salePrice && <span className="field-error">{errors.salePrice}</span>}
               </div>
-              {form.category !== 'zapatos' && (
+              {!isShoe && (
                 <div className="form-group">
                   <label>Stock Total *</label>
                   <input

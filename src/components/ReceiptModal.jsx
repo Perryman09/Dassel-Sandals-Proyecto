@@ -51,10 +51,11 @@ export default function ReceiptModal({ sale, onClose }) {
                   <td>
                     <div className="receipt-item-name">
                       {item.productName}
-                      {item.selectedSize ? ` (Talla ${item.selectedSize})` : ''}
+                      {item.selectedSize ? ` (Talla #${item.selectedSize})` : ''}
                     </div>
                     <small className="receipt-item-code">
                       {item.productCode} @ {formatCurrency(item.price)}
+                      {item.selectedSize ? ` · Talla ${Number(item.selectedSize) >= 30 ? `EUR #${item.selectedSize}` : `US #${item.selectedSize}`}` : ''}
                     </small>
                   </td>
                   <td style={{ textAlign: 'center' }}>{item.quantity}</td>
@@ -73,7 +74,13 @@ export default function ReceiptModal({ sale, onClose }) {
             </div>
             {Number(sale.discount) > 0 && (
               <div className="receipt-total-row">
-                <span>{sale.wholesalePct ? `MAYOREO (-${sale.wholesalePct}%):` : 'DESCUENTO:'}</span>
+                <span>
+                  {sale.wholesalePct
+                    ? `DESC. MAYOREO (${sale.wholesalePct}%):`
+                    : (Number(sale.subtotal) > 0 && [5, 10, 15].includes(Math.round((Number(sale.discount) / Number(sale.subtotal)) * 100)))
+                    ? `DESC. MAYOREO (${Math.round((Number(sale.discount) / Number(sale.subtotal)) * 100)}%):`
+                    : 'DESCUENTO APLICADO:'}
+                </span>
                 <span>-{formatCurrency(sale.discount)}</span>
               </div>
             )}
@@ -81,15 +88,15 @@ export default function ReceiptModal({ sale, onClose }) {
               <span>TOTAL (C$):</span>
               <span>{formatCurrency(sale.total)}</span>
             </div>
-            {sale.paymentMethod === 'Efectivo' && sale.receivedAmount && (
+            {sale.paymentMethod === 'Efectivo' && (
               <>
                 <div className="receipt-total-row">
                   <span>EFECTIVO RECIBIDO:</span>
-                  <span>{formatCurrency(sale.receivedAmount)}</span>
+                  <span>{formatCurrency(sale.receivedAmount || sale.total)}</span>
                 </div>
                 <div className="receipt-total-row change">
                   <span>CAMBIO:</span>
-                  <span>{formatCurrency(Math.max(0, sale.receivedAmount - sale.total))}</span>
+                  <span>{formatCurrency(Math.max(0, (Number(sale.receivedAmount) || Number(sale.total)) - Number(sale.total)))}</span>
                 </div>
               </>
             )}
@@ -99,7 +106,7 @@ export default function ReceiptModal({ sale, onClose }) {
 
           <div className="receipt-footer">
             <p>¡Gracias por su compra en Dassel Sandals!</p>
-            <p>Cambios dentro de los 7 días con este ticket.</p>
+            <p><strong>15 días de devolución o cambio en calzado con este ticket.</strong></p>
             <p>Calzado y Joyería con Encanto Artesanal ✨</p>
             <div className="barcode-sim">
               ||| | |||| | ||| || |||| | |||

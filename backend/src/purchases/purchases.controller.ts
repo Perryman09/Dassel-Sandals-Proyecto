@@ -47,6 +47,14 @@ export class PurchasesController {
     return this.purchasesService.create(createPurchaseDto);
   }
 
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updatePurchaseDto: any,
+  ) {
+    return this.purchasesService.update(id, updatePurchaseDto);
+  }
+
   @Patch(':id/cancel')
   cancel(@Param('id', ParseIntPipe) id: number) {
     return this.purchasesService.cancel(id);

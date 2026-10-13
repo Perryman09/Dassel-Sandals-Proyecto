@@ -8,8 +8,16 @@ import { AdjustStockDto } from './dto/adjust-stock.dto';
 export class ProductsService {
   constructor(private prisma: PrismaService) {}
 
+  private isShoeCategory(category?: string): boolean {
+    if (!category) return false;
+    const c = category.toLowerCase();
+    if (c === 'joyas' || c === 'joyeria' || c === 'joyería') return false;
+    if (c === 'zapatos') return true;
+    return /(zapato|calzado|sandalia|tacon|tacón|huarache|plataforma|flat|bota|botin|botín|stiletto|chinela|tenis|zapatilla|alpargata|mocasin|mocasín|cuña|mule)/i.test(c);
+  }
+
   async getNextCode(category: string): Promise<string> {
-    const prefix = category.toLowerCase() === 'zapatos' ? 'DS-ZAP' : 'DS-JOY';
+    const prefix = this.isShoeCategory(category) ? 'DS-ZAP' : 'DS-JOY';
     const products = await this.prisma.product.findMany({
       where: { code: { startsWith: prefix } },
       select: { code: true },
@@ -90,7 +98,7 @@ export class ProductsService {
     let finalStock = dto.stock ?? 0;
     let computedSize = dto.size || null;
 
-    if (dto.category === 'zapatos' && dto.sizesStock && typeof dto.sizesStock === 'object') {
+    if ((this.isShoeCategory(dto.category) || (dto.sizesStock && Object.keys(dto.sizesStock).length > 0)) && dto.sizesStock && typeof dto.sizesStock === 'object') {
       const sum = Object.values(dto.sizesStock).reduce((acc: number, val: any) => acc + (Number(val) || 0), 0);
       finalStock = sum;
       if (!computedSize) {
@@ -149,7 +157,7 @@ export class ProductsService {
     const product = await this.findOne(id);
     const updateData: any = { ...dto };
 
-    if (dto.category === 'zapatos' && dto.sizesStock && typeof dto.sizesStock === 'object') {
+    if ((this.isShoeCategory(dto.category || product.category) || (dto.sizesStock && Object.keys(dto.sizesStock).length > 0)) && dto.sizesStock && typeof dto.sizesStock === 'object') {
       updateData.sizesStock = dto.sizesStock;
       if (dto.stock === undefined) {
         updateData.stock = Object.values(dto.sizesStock).reduce((acc: number, val: any) => acc + (Number(val) || 0), 0);

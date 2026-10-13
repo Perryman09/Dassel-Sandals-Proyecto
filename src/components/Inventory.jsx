@@ -13,7 +13,7 @@ import CategoryModal from './CategoryModal';
 import ProductDetailModal from './ProductDetailModal';
 
 export default function Inventory() {
-  const { products, deleteProduct, adjustStock, exportProductsCSV, categories } = useApp();
+  const { products, deleteProduct, adjustStock, exportProductsCSV, categories, isShoeCategory, getCategoryInfo } = useApp();
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -128,7 +128,7 @@ export default function Inventory() {
   const handleAdjust = async () => {
     if (!adjustModal) return;
 
-    if (adjustModal.category === 'zapatos') {
+    if (isShoeCategory(adjustModal)) {
       if (adjustMode === 'single') {
         const qty = parseInt(adjustQty, 10);
         if (isNaN(qty) || qty === 0) return;
@@ -273,7 +273,7 @@ export default function Inventory() {
                         {p.color ? ` · Color: ${p.color}` : ''}
                         {p.material ? ` · ${p.material}` : ''}
                       </small>
-                      {p.category === 'zapatos' && p.sizesStock && (
+                      {isShoeCategory(p) && p.sizesStock && (
                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
                           {Object.entries(p.sizesStock)
                             .filter(([, qty]) => Number(qty) > 0)
@@ -287,9 +287,14 @@ export default function Inventory() {
                     </div>
                   </td>
                   <td>
-                    <span className={`badge ${p.category === 'zapatos' ? 'badge-info' : 'badge-purple'}`}>
-                      {p.category === 'zapatos' ? '👡 Zapatos' : '💎 Joyas'}
-                    </span>
+                    {(() => {
+                      const catInfo = getCategoryInfo(p);
+                      return (
+                        <span className={`badge ${catInfo.isShoe ? 'badge-info' : 'badge-purple'}`}>
+                          {catInfo.icon} {catInfo.name}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td>{formatCurrency(p.costPrice)}</td>
                   <td>
@@ -418,7 +423,7 @@ export default function Inventory() {
               <p style={{ color: 'var(--text-secondary)', marginTop: 8, fontSize: '0.85rem' }}>
                 Código: <code>{deleteConfirm.code}</code> · Stock actual: {deleteConfirm.stock} pzas
               </p>
-              {deleteConfirm.category === 'zapatos' && deleteConfirm.sizesStock && (
+              {isShoeCategory(deleteConfirm) && deleteConfirm.sizesStock && (
                 <div style={{ marginTop: 10, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                   Se eliminarán también las existencias registradas de su matriz de tallas.
                 </div>
@@ -450,15 +455,15 @@ export default function Inventory() {
             <div className="modal-body">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Código: <code>{adjustModal.code}</code> · Tipo: <strong>{adjustModal.category === 'zapatos' ? '👡 Calzado' : '💎 Joyería'}</strong>
+                  Código: <code>{adjustModal.code}</code> · Tipo: <strong>{isShoeCategory(adjustModal) ? '👡 Calzado' : '💎 Joyería'}</strong>
                 </span>
                 <span className="badge badge-info" style={{ fontSize: '0.85rem' }}>
-                  Stock actual: {adjustModal.stock} {adjustModal.category === 'zapatos' ? 'pares' : 'piezas'}
+                  Stock actual: {adjustModal.stock} {isShoeCategory(adjustModal) ? 'pares' : 'piezas'}
                 </span>
               </div>
 
               {/* SI ES CALZADO: OPCIÓN DE AJUSTAR POR TALLA O MATRIZ COMPLETA */}
-              {adjustModal.category === 'zapatos' ? (
+              {isShoeCategory(adjustModal) ? (
                 <div>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
                     <button

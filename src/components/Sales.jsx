@@ -9,7 +9,7 @@ import { formatCurrency, formatDateTime } from '../utils/format';
 import ReceiptModal from './ReceiptModal';
 
 export default function Sales() {
-  const { sales, cancelSale, exportSalesCSV } = useApp();
+  const { sales, cancelSale, exportSalesCSV, products, isShoeCategory } = useApp();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [payFilter, setPayFilter] = useState('all');
@@ -20,6 +20,33 @@ export default function Sales() {
   const [cancelConfirm, setCancelConfirm] = useState(null);
   const [page, setPage] = useState(1);
   const perPage = 10;
+
+  const formatSizeDisplay = (sz) => {
+    if (!sz) return '';
+    return Number(sz) >= 30 ? `EUR #${sz}` : `US #${sz}`;
+  };
+
+  const getSaleDiscountDetails = (sale) => {
+    const sub = Number(sale?.subtotal) || 0;
+    const disc = Number(sale?.discount) || 0;
+    if (disc <= 0) return { hasDiscount: false, wholesalePct: 0, wholesaleAmt: 0, manualAmt: 0 };
+
+    if (sale.wholesalePct && Number(sale.wholesalePct) > 0) {
+      const wAmt = Number(sale.wholesaleDiscount) || ((sub * Number(sale.wholesalePct)) / 100);
+      const mAmt = Math.max(0, disc - wAmt);
+      return { hasDiscount: true, wholesalePct: Number(sale.wholesalePct), wholesaleAmt: wAmt, manualAmt: mAmt };
+    }
+
+    // Inferir si el descuento guardado corresponde a un porcentaje exacto de mayoreo (5%, 10%, 15%)
+    if (sub > 0) {
+      const pct = Math.round((disc / sub) * 100);
+      if ([5, 10, 15].includes(pct) && Math.abs(disc - (sub * pct) / 100) < 1) {
+        return { hasDiscount: true, wholesalePct: pct, wholesaleAmt: disc, manualAmt: 0 };
+      }
+    }
+
+    return { hasDiscount: true, wholesalePct: 0, wholesaleAmt: 0, manualAmt: disc };
+  };
 
   const filtered = [...sales]
     .filter(s => {
@@ -219,40 +246,102 @@ export default function Sales() {
                       <th>Código</th>
                       <th>Producto</th>
                       <th>Precio Unitario</th>
-                      <th>Cantidad</th>
+                      <th>Cantidad &amp; Talla</th>
                       <th>Subtotal</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {detailSale.items.map((item, i) => (
-                      <tr key={i}>
-                        <td><code>{item.productCode}</code></td>
-                        <td>{item.productName}</td>
-                        <td>{formatCurrency(item.price)}</td>
-                        <td><strong>{item.quantity}</strong></td>
-                        <td><strong>{formatCurrency(item.subtotal)}</strong></td>
-                      </tr>
-                    ))}
+                    {detailSale.items.map((item, i) => {
+                      const prodObj = products.find(p => p.id === item.productId || p.code === item.productCode);
+                      const isShoe = item.selectedSize || (prodObj && isShoeCategory(prodObj)) || String(item.productCode || '').startsWith('DS-ZAP');
+                      const sizeText = item.selectedSize || (isShoe && prodObj?.size ? prodObj.size : '');
+                      return (
+                        <tr key={i}>
+                          <td><code>{item.productCode}</code></td>
+                          <td>
+                            <strong>{item.productName}</strong>
+                            {sizeText && (
+                              <div style={{ fontSize: '0.76rem', color: 'var(--accent-light)', marginTop: 2 }}>
+                                👠 Talla: <strong>{item.selectedSize ? formatSizeDisplay(item.selectedSize) : sizeText}</strong>
+                              </div>
+                            )}
+                          </td>
+                          <td>{formatCurrency(item.price)}</td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                              <strong style={{ fontSize: '1rem' }}>
+                                {item.quantity} {isShoe ? (item.quantity === 1 ? 'par' : 'pares') : (item.quantity === 1 ? 'pza' : 'pzas')}
+                              </strong>
+                              {sizeText && (
+                                <span className="badge badge-sm badge-info" style={{ fontWeight: 700 }}>
+                                  Talla {item.selectedSize ? formatSizeDisplay(item.selectedSize) : sizeText}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td><strong style={{ color: 'var(--accent-light)' }}>{formatCurrency(item.subtotal)}</strong></td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
-              <div className="sale-totals">
-                <div className="cart-row">
-                  <span>Subtotal</span>
-                  <span>{formatCurrency(detailSale.subtotal)}</span>
-                </div>
-                {detailSale.discount > 0 && (
-                  <div className="cart-row">
-                    <span>Descuento aplicado</span>
-                    <span style={{ color: 'var(--danger)' }}>-{formatCurrency(detailSale.discount)}</span>
+              {(() => {
+                const discInfo = getSaleDiscountDetails(detailSale);
+                const receivedAmt = detailSale.receivedAmount ? Number(detailSale.receivedAmount) : (detailSale.paymentMethod === 'Efectivo' ? Number(detailSale.total) : 0);
+                const changeAmt = detailSale.paymentMethod === 'Efectivo' ? Math.max(0, receivedAmt - Number(detailSale.total)) : 0;
+
+                return (
+                  <div className="sale-totals" style={{ marginTop: 18, padding: '14px 18px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div className="cart-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.92rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Subtotal:</span>
+                      <strong>{formatCurrency(detailSale.subtotal)}</strong>
+                    </div>
+
+                    {discInfo.wholesaleAmt > 0 && (
+                      <div className="cart-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.92rem', color: 'var(--accent-light)' }}>
+                        <span>✨ Descuento al Mayoreo ({discInfo.wholesalePct}%):</span>
+                        <strong style={{ color: 'var(--danger)' }}>-{formatCurrency(discInfo.wholesaleAmt)}</strong>
+                      </div>
+                    )}
+
+                    {discInfo.manualAmt > 0 && (
+                      <div className="cart-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.92rem' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>
+                          {discInfo.wholesaleAmt > 0 ? 'Descuento Adicional:' : 'Descuento Aplicado:'}
+                        </span>
+                        <strong style={{ color: 'var(--danger)' }}>-{formatCurrency(discInfo.manualAmt)}</strong>
+                      </div>
+                    )}
+
+                    {!discInfo.hasDiscount && (
+                      <div className="cart-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        <span>Descuento al Mayoreo:</span>
+                        <span>No aplicado (C$ 0.00)</span>
+                      </div>
+                    )}
+
+                    <div className="cart-row total" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 4, fontSize: '1.15rem', fontWeight: 800 }}>
+                      <span>TOTAL COBRADO:</span>
+                      <span style={{ color: 'var(--accent-light)', fontSize: '1.3rem' }}>{formatCurrency(detailSale.total)}</span>
+                    </div>
+
+                    {detailSale.paymentMethod === 'Efectivo' && (
+                      <div style={{ borderTop: '1px dashed var(--border)', paddingTop: 10, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.92rem' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>💵 Efectivo Recibido del Cliente:</span>
+                          <strong style={{ color: 'var(--text-primary)' }}>{formatCurrency(receivedAmt)}</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.95rem' }}>
+                          <span style={{ color: 'var(--success)', fontWeight: 600 }}>✅ Cambio / Vuelto Entregado:</span>
+                          <strong style={{ color: 'var(--success)', fontSize: '1.05rem' }}>{formatCurrency(changeAmt)}</strong>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-                <div className="cart-row total">
-                  <span>TOTAL COBRADO</span>
-                  <span>{formatCurrency(detailSale.total)}</span>
-                </div>
-              </div>
+                );
+              })()}
             </div>
             <div className="modal-actions">
               <button

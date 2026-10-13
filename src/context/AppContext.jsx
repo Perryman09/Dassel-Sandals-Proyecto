@@ -22,15 +22,77 @@ export const initialCategories = [
     id: 'zapatos',
     name: 'Zapatos & Tacones',
     icon: '👡',
+    type: 'zapatos',
     subcategories: ['Sandalias', 'Huaraches', 'Plataformas', 'Flats', 'Tacones', 'Tacones Altos', 'Stilettos', 'Botines', 'Otro'],
   },
   {
     id: 'joyas',
     name: 'Joyas & Accesorios',
     icon: '💎',
+    type: 'joyas',
     subcategories: ['Collares', 'Pulseras', 'Aretes', 'Anillos', 'Tobilleras', 'Dijes', 'Cadenas', 'Juegos', 'Otro'],
   },
 ];
+
+const SHOE_KEYWORDS_REGEX = /(zapato|calzado|sandalia|tacon|tacón|huarache|plataforma|flat|bota|botin|botín|stiletto|chinela|tenis|zapatilla|alpargata|mocasin|mocasín|cuña|mule)/i;
+const SHOE_ICONS = ['👡', '👠', '👟', '👢', '👞', '🥿', '🥾'];
+const JEWELRY_ICONS = ['💎', '💍', '📿', '👑', '✨', '⌚'];
+
+// Helper inteligente para identificar si una categoría o producto es de Calzado (Zapatos con Tallas) o Joyería
+export function isShoeCategory(catIdOrObj, categoriesList = initialCategories) {
+  if (!catIdOrObj) return false;
+
+  // Si recibe un objeto de producto o categoría
+  if (typeof catIdOrObj === 'object') {
+    if (catIdOrObj.type === 'zapatos' || catIdOrObj.type === 'calzado') return true;
+    if (catIdOrObj.type === 'joyas' || catIdOrObj.type === 'joyeria') return false;
+    if (catIdOrObj.sizesStock && typeof catIdOrObj.sizesStock === 'object' && Object.keys(catIdOrObj.sizesStock).length > 0) {
+      return true;
+    }
+    const catId = catIdOrObj.category || catIdOrObj.id || '';
+    const subcat = catIdOrObj.subcategory || '';
+    const name = catIdOrObj.name || '';
+    const icon = catIdOrObj.icon || '';
+    if (SHOE_ICONS.includes(icon)) return true;
+    if (JEWELRY_ICONS.includes(icon)) return false;
+    if (isShoeCategory(catId, categoriesList)) return true;
+    if (SHOE_KEYWORDS_REGEX.test(subcat) || SHOE_KEYWORDS_REGEX.test(name)) return true;
+    return false;
+  }
+
+  const rawId = String(catIdOrObj).trim();
+  const lowerId = rawId.toLowerCase();
+  if (lowerId === 'zapatos' || lowerId === 'calzado') return true;
+  if (lowerId === 'joyas' || lowerId === 'joyeria' || lowerId === 'joyería') return false;
+
+  // Buscar en la lista de categorías dinámicas
+  const list = Array.isArray(categoriesList) && categoriesList.length > 0 ? categoriesList : initialCategories;
+  const found = list.find(c => String(c.id).toLowerCase() === lowerId || String(c.name).toLowerCase() === lowerId);
+  if (found) {
+    if (found.type === 'zapatos' || found.type === 'calzado') return true;
+    if (found.type === 'joyas' || found.type === 'joyeria') return false;
+    if (SHOE_ICONS.includes(found.icon)) return true;
+    if (JEWELRY_ICONS.includes(found.icon)) return false;
+    if (SHOE_KEYWORDS_REGEX.test(found.name) || SHOE_KEYWORDS_REGEX.test(found.id)) return true;
+    if (Array.isArray(found.subcategories) && found.subcategories.some(s => SHOE_KEYWORDS_REGEX.test(s))) return true;
+  }
+
+  // Fallback por nombre/slug de la categoría
+  return SHOE_KEYWORDS_REGEX.test(lowerId);
+}
+
+export function getCategoryInfo(catIdOrObj, categoriesList = initialCategories) {
+  const catId = typeof catIdOrObj === 'object' ? (catIdOrObj?.category || catIdOrObj?.id || '') : String(catIdOrObj || '');
+  const list = Array.isArray(categoriesList) && categoriesList.length > 0 ? categoriesList : initialCategories;
+  const found = list.find(c => String(c.id).toLowerCase() === String(catId).toLowerCase());
+  const isShoe = isShoeCategory(catIdOrObj, list);
+  return {
+    id: found ? found.id : (catId || (isShoe ? 'zapatos' : 'joyas')),
+    name: found ? found.name : (catId ? catId.charAt(0).toUpperCase() + catId.slice(1) : (isShoe ? 'Calzado' : 'Joyería')),
+    icon: found?.icon || (isShoe ? '👡' : '💎'),
+    isShoe,
+  };
+}
 
 export const initialSuppliers = [];
 
@@ -72,13 +134,31 @@ export const normalizeCashMovement = (m) => {
     ? 'cierre'
     : 'salida';
 
+  const defaultCat =
+    type === 'salida'
+      ? 'Gasto Menor'
+      : type === 'apertura'
+      ? 'Apertura de Caja'
+      : type === 'cierre'
+      ? 'Cierre de Caja'
+      : 'Aporte de Efectivo';
+
+  const defaultDesc =
+    type === 'salida'
+      ? 'Salida de Efectivo'
+      : type === 'apertura'
+      ? 'Fondo Inicial de Apertura'
+      : type === 'cierre'
+      ? 'Corte y Cierre de Turno'
+      : 'Ingreso de Efectivo';
+
   return {
     id: m.id || Date.now(),
     date: m.date || new Date().toISOString(),
     type,
     amount: Number(m.amount) || 0,
-    category: m.category || m.notes || (type === 'salida' ? 'Gasto Menor' : type === 'apertura' ? 'Fondo Inicial' : 'Aporte de Efectivo'),
-    description: m.description || m.reason || m.notes || (type === 'salida' ? 'Salida de Efectivo' : 'Ingreso de Efectivo'),
+    category: m.category || m.notes || defaultCat,
+    description: m.description || m.reason || m.notes || defaultDesc,
     responsible: m.responsible || 'Administración',
     notes: m.notes || m.category || null,
     reason: m.reason || m.description || '',
@@ -89,14 +169,15 @@ const initialCashMovements = [];
 
 // Limpiar datos demo antiguos si existían en versiones previas
 try {
-  if (!localStorage.getItem('dassel_production_clean_v1')) {
+  if (!localStorage.getItem('dassel_production_clean_v2')) {
     localStorage.removeItem('dassel_products');
     localStorage.removeItem('dassel_sales');
     localStorage.removeItem('dassel_movements');
     localStorage.removeItem('dassel_cash_movements');
+    localStorage.removeItem('dassel_categories');
     localStorage.removeItem('dassel_suppliers');
     localStorage.removeItem('dassel_purchases');
-    localStorage.setItem('dassel_production_clean_v1', 'true');
+    localStorage.setItem('dassel_production_clean_v2', 'true');
   }
 } catch (e) {
   // ignore
@@ -168,7 +249,7 @@ function appReducer(state, action) {
       const targetSize = action.payload.size;
       const payloadSizesStock = action.payload.sizesStock;
 
-      let newSizesStock = target.sizesStock ? { ...target.sizesStock } : (target.category === 'zapatos' ? {} : null);
+      let newSizesStock = target.sizesStock ? { ...target.sizesStock } : (isShoeCategory(target, state.categories) ? {} : null);
       let newStock = Number(target.stock);
 
       if (payloadSizesStock && typeof payloadSizesStock === 'object') {
@@ -321,7 +402,7 @@ function appReducer(state, action) {
         if (pItems.length === 0) return p;
 
         let addedStock = 0;
-        let updatedSizesStock = p.sizesStock ? { ...p.sizesStock } : (p.category === 'zapatos' ? {} : null);
+        let updatedSizesStock = p.sizesStock ? { ...p.sizesStock } : (isShoeCategory(p, state.categories) ? {} : null);
         let latestCost = Number(p.costPrice) || 0;
 
         pItems.forEach(it => {
@@ -382,6 +463,70 @@ function appReducer(state, action) {
         products: updatedProducts,
         movements: [...newMovements, ...state.movements],
         cashMovements: newCashMovements,
+      };
+    }
+
+    case 'UPDATE_PURCHASE': {
+      const { id, updates } = action.payload;
+      const oldPurchase = (state.purchases || []).find(p => p.id === id);
+      if (!oldPurchase) return state;
+
+      const updatedPurchase = {
+        ...oldPurchase,
+        ...updates,
+        total: Number(updates.total !== undefined ? updates.total : oldPurchase.total) || 0,
+      };
+
+      let updatedProducts = [...state.products];
+      if (oldPurchase.status === 'received') {
+        updatedProducts = updatedProducts.map(p => {
+          const oldItems = (oldPurchase.items || []).filter(it => it.productId === p.id);
+          const newItems = (updatedPurchase.items || []).filter(it => it.productId === p.id);
+          if (oldItems.length === 0 && newItems.length === 0) return p;
+
+          let currentStock = Number(p.stock) || 0;
+          let currentSizes = p.sizesStock ? { ...p.sizesStock } : (isShoeCategory(p, state.categories) ? {} : null);
+          let latestCost = Number(p.costPrice) || 0;
+
+          // 1. Revertir cantidades anteriores
+          oldItems.forEach(it => {
+            const qty = Number(it.quantity) || 0;
+            currentStock = Math.max(0, currentStock - qty);
+            if (currentSizes && it.sizesBreakdown && typeof it.sizesBreakdown === 'object') {
+              Object.entries(it.sizesBreakdown).forEach(([sz, q]) => {
+                currentSizes[sz] = Math.max(0, (Number(currentSizes[sz]) || 0) - (Number(q) || 0));
+              });
+            }
+          });
+
+          // 2. Aplicar nuevas cantidades
+          newItems.forEach(it => {
+            const qty = Number(it.quantity) || 0;
+            currentStock += qty;
+            if (it.unitCost && Number(it.unitCost) > 0) {
+              latestCost = Number(it.unitCost);
+            }
+            if (it.sizesBreakdown && typeof it.sizesBreakdown === 'object') {
+              if (!currentSizes) currentSizes = {};
+              Object.entries(it.sizesBreakdown).forEach(([sz, q]) => {
+                currentSizes[sz] = (Number(currentSizes[sz]) || 0) + (Number(q) || 0);
+              });
+            }
+          });
+
+          return {
+            ...p,
+            stock: currentStock,
+            costPrice: latestCost,
+            sizesStock: currentSizes || p.sizesStock,
+          };
+        });
+      }
+
+      return {
+        ...state,
+        purchases: (state.purchases || []).map(p => p.id === id ? updatedPurchase : p),
+        products: updatedProducts,
       };
     }
 
@@ -697,7 +842,7 @@ export function AppProvider({ children }) {
 
   const addProduct = async (product) => {
     let finalStock = Number(product.stock) || 0;
-    if (product.category === 'zapatos' && product.sizesStock && typeof product.sizesStock === 'object') {
+    if (isShoeCategory(product, state.categories) && product.sizesStock && typeof product.sizesStock === 'object') {
       const sum = Object.values(product.sizesStock).reduce((acc, n) => acc + (Number(n) || 0), 0);
       finalStock = sum;
     }
@@ -733,7 +878,7 @@ export function AppProvider({ children }) {
 
   const updateProduct = async (id, updates) => {
     let finalStock = updates.stock !== undefined ? Number(updates.stock) : undefined;
-    if (updates.category === 'zapatos' && updates.sizesStock && typeof updates.sizesStock === 'object') {
+    if (isShoeCategory(updates, state.categories) && updates.sizesStock && typeof updates.sizesStock === 'object') {
       finalStock = Object.values(updates.sizesStock).reduce((acc, n) => acc + (Number(n) || 0), 0);
     }
 
@@ -801,13 +946,21 @@ export function AppProvider({ children }) {
     if (backendOnline) {
       try {
         const created = await api.createSale(formattedSale);
-        dispatch({ type: 'ADD_SALE', payload: created });
-        return created;
+        const merged = {
+          ...formattedSale,
+          ...created,
+          receivedAmount: created.receivedAmount ?? formattedSale.receivedAmount,
+          wholesalePct: formattedSale.wholesalePct ?? 0,
+          wholesaleDiscount: formattedSale.wholesaleDiscount ?? 0,
+        };
+        dispatch({ type: 'ADD_SALE', payload: merged });
+        return merged;
       } catch (err) {
         console.warn('Fallo al registrar venta en backend:', err);
       }
     }
     dispatch({ type: 'ADD_SALE', payload: formattedSale });
+    return formattedSale;
   };
 
   const cancelSale = async (id) => {
@@ -842,7 +995,7 @@ export function AppProvider({ children }) {
   const resetAllData = () => dispatch({ type: 'RESET_ALL' });
 
   const getNextCode = (category) => {
-    const prefix = category === 'zapatos' ? 'DS-ZAP' : 'DS-JOY';
+    const prefix = isShoeCategory(category, state.categories) ? 'DS-ZAP' : 'DS-JOY';
     const existing = state.products.filter(p => p.code.startsWith(prefix));
     const maxNum = existing.reduce((max, p) => {
       const parts = p.code.split('-');
@@ -861,7 +1014,7 @@ export function AppProvider({ children }) {
     return `VTA-${String(maxNum + 1).padStart(4, '0')}`;
   };
 
-  // Cálculo de Caja del Día (Arqueo)
+  // Cálculo de Caja del Día y Turno Actual (Arqueo)
   const getCashBalance = () => {
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
@@ -880,35 +1033,97 @@ export function AppProvider({ children }) {
       }
     };
 
-    // Ventas en efectivo de hoy
-    const cashSalesToday = state.sales
-      .filter(s => s.status === 'completed' && s.paymentMethod === 'Efectivo' && isToday(s.date))
+    // Movimientos de caja de hoy ordenados cronológicamente (del más antiguo al más reciente para detectar turno)
+    const todayCashMovesChrono = [...state.cashMovements]
+      .filter(m => isToday(m.date))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Movimientos de caja de hoy ordenados del más reciente al más antiguo para mostrar en tabla
+    const todayCashMovesDesc = [...todayCashMovesChrono].reverse();
+
+    const openingsToday = todayCashMovesChrono.filter(m => m.type === 'apertura');
+    const closingsToday = todayCashMovesChrono.filter(m => m.type === 'cierre');
+
+    const lastOpening = openingsToday.length > 0 ? openingsToday[openingsToday.length - 1] : null;
+    const lastClosing = closingsToday.length > 0 ? closingsToday[closingsToday.length - 1] : null;
+
+    // Determinar estado del turno de hoy: 'open' | 'closed' | 'unopened'
+    let shiftStatus = 'unopened';
+    if (lastOpening && (!lastClosing || new Date(lastOpening.date) >= new Date(lastClosing.date))) {
+      shiftStatus = 'open';
+    } else if (lastClosing && (!lastOpening || new Date(lastClosing.date) > new Date(lastOpening.date))) {
+      shiftStatus = 'closed';
+    }
+
+    const isRegisterOpen = shiftStatus === 'open';
+
+    // Si hubo un cierre previo hoy, el nuevo turno cuenta sólo después de ese último cierre
+    const cutoffTime = lastClosing ? new Date(lastClosing.date).getTime() : 0;
+
+    const isInCurrentShift = (dateVal) => {
+      if (!isToday(dateVal)) return false;
+      if (shiftStatus === 'closed') return false;
+      if (cutoffTime > 0) {
+        return new Date(dateVal).getTime() > cutoffTime;
+      }
+      return true;
+    };
+
+    // Ventas completadas de hoy dentro del turno activo
+    const shiftSales = state.sales.filter(
+      s => s.status === 'completed' && isInCurrentShift(s.date)
+    );
+
+    const cashSalesToday = shiftSales
+      .filter(s => s.paymentMethod === 'Efectivo')
       .reduce((acc, s) => acc + (Number(s.total) || 0), 0);
 
-    // Movimientos de caja de hoy
-    const todayCashMoves = state.cashMovements.filter(m => isToday(m.date));
+    const cashSalesCount = shiftSales.filter(s => s.paymentMethod === 'Efectivo').length;
 
-    const totalApertura = todayCashMoves
+    const cardSalesToday = shiftSales
+      .filter(s => s.paymentMethod === 'Tarjeta')
+      .reduce((acc, s) => acc + (Number(s.total) || 0), 0);
+
+    const transferSalesToday = shiftSales
+      .filter(s => s.paymentMethod === 'Transferencia')
+      .reduce((acc, s) => acc + (Number(s.total) || 0), 0);
+
+    // Movimientos del turno activo
+    const activeShiftMoves = todayCashMovesChrono.filter(m => isInCurrentShift(m.date));
+
+    const totalApertura = activeShiftMoves
       .filter(m => m.type === 'apertura')
       .reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
 
-    const totalEntradas = todayCashMoves
+    const totalEntradas = activeShiftMoves
       .filter(m => m.type === 'entrada' || m.type === 'ingreso')
       .reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
 
-    const totalSalidas = todayCashMoves
+    const totalSalidas = activeShiftMoves
       .filter(m => m.type === 'salida' || m.type === 'egreso')
       .reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
 
-    const saldoEsperado = totalApertura + cashSalesToday + totalEntradas - totalSalidas;
+    const saldoEsperado =
+      shiftStatus === 'closed'
+        ? 0
+        : totalApertura + cashSalesToday + totalEntradas - totalSalidas;
 
     return {
+      shiftStatus, // 'open' | 'closed' | 'unopened'
+      isRegisterOpen,
+      lastOpening,
+      lastClosing,
+      shiftNumber: openingsToday.length || 1,
       totalApertura,
       cashSalesToday,
+      cashSalesCount,
+      cardSalesToday,
+      transferSalesToday,
       totalEntradas,
       totalSalidas,
       saldoEsperado,
-      movements: todayCashMoves,
+      movements: todayCashMovesDesc,
+      activeShiftMovements: [...activeShiftMoves].reverse(),
       allMovements: state.cashMovements,
     };
   };
@@ -1026,6 +1241,27 @@ export function AppProvider({ children }) {
     dispatch({ type: 'ADD_PURCHASE', payload: purchaseData });
   };
 
+  const updatePurchase = async (id, purchaseData) => {
+    if (backendOnline) {
+      try {
+        const updated = await api.updatePurchase(id, purchaseData);
+        if (updated) {
+          dispatch({ type: 'UPDATE_PURCHASE', payload: { id, updates: updated } });
+          const [updatedProds, updatedMoves] = await Promise.all([
+            api.getProducts().catch(() => null),
+            api.getMovements().catch(() => null),
+          ]);
+          if (updatedProds) dispatch({ type: 'SET_PRODUCTS', payload: updatedProds });
+          if (updatedMoves) dispatch({ type: 'SET_MOVEMENTS', payload: updatedMoves });
+          return updated;
+        }
+      } catch (err) {
+        console.warn('Fallo al actualizar compra en backend:', err);
+      }
+    }
+    dispatch({ type: 'UPDATE_PURCHASE', payload: { id, updates: purchaseData } });
+  };
+
   const cancelPurchase = async (id) => {
     if (backendOnline) {
       try {
@@ -1107,7 +1343,7 @@ export function AppProvider({ children }) {
       try {
         const created = await api.createCategory(categoryData);
         if (created) {
-          dispatch({ type: 'ADD_CATEGORY', payload: created });
+          dispatch({ type: 'ADD_CATEGORY', payload: { ...categoryData, ...created } });
           return created;
         }
       } catch (err) {
@@ -1184,6 +1420,7 @@ export function AppProvider({ children }) {
         exportProductsCSV,
         exportSalesCSV,
         addPurchase,
+        updatePurchase,
         cancelPurchase,
         getNextPurchaseNumber,
         addSupplier,
@@ -1196,6 +1433,8 @@ export function AppProvider({ children }) {
         addSubcategory,
         updateSubcategory,
         deleteSubcategory,
+        isShoeCategory: (catIdOrObj) => isShoeCategory(catIdOrObj, state.categories),
+        getCategoryInfo: (catIdOrObj) => getCategoryInfo(catIdOrObj, state.categories),
       }}
     >
       {children}

@@ -22,14 +22,18 @@ export default function CategoryModal({ onClose }) {
   // Estados para crear nueva categoría
   const [showNewCatForm, setShowNewCatForm] = useState(false);
   const [newCatName, setNewCatName] = useState('');
-  const [newCatIcon, setNewCatIcon] = useState('✨');
+  const [newCatIcon, setNewCatIcon] = useState('👡');
+  const [newCatType, setNewCatType] = useState('zapatos'); // 'zapatos' | 'joyas'
   const [newCatError, setNewCatError] = useState('');
 
   // Estados para editar nombre de categoría actual
   const [editingCatName, setEditingCatName] = useState(false);
   const [catNameInput, setCatNameInput] = useState('');
 
+  const { isShoeCategory } = useApp();
   const currentCategory = categories.find(c => c.id === selectedCatId) || categories[0];
+  const shoeKeywordsRegex = /(zapato|calzado|sandalia|tacon|tacón|huarache|plataforma|flat|bota|botin|botín|stiletto|chinela|tenis|zapatilla|alpargata|mocasin|mocasín|cuña|mule)/i;
+  const shoeIcons = ['👡', '👠', '👟', '👢'];
 
   const handleAddSubcategory = (e) => {
     e.preventDefault();
@@ -95,17 +99,33 @@ export default function CategoryModal({ onClose }) {
       return;
     }
 
+    const finalType = shoeKeywordsRegex.test(trimmed) ? 'zapatos' : newCatType;
+    const finalIcon = newCatIcon || (finalType === 'zapatos' ? '👡' : '💎');
+    const defaultSubs = finalType === 'zapatos'
+      ? ['Sandalias', 'Tacones', 'Plataformas', 'Flats', 'General']
+      : ['General', 'Otro'];
+
     addCategory({
       id: slug,
       name: trimmed,
-      icon: newCatIcon || '📦',
-      subcategories: ['General', 'Otro'],
+      icon: finalIcon,
+      type: finalType,
+      subcategories: defaultSubs,
     });
 
     setSelectedCatId(slug);
     setNewCatName('');
+    setNewCatIcon('👡');
+    setNewCatType('zapatos');
     setShowNewCatForm(false);
     setNewCatError('');
+  };
+
+  const handleChangeCategoryType = (cat, newType) => {
+    const nextIcon = newType === 'zapatos'
+      ? (['💎', '💍', '📿', '✨'].includes(cat.icon) ? '👡' : (cat.icon || '👡'))
+      : (shoeIcons.includes(cat.icon) ? '💎' : (cat.icon || '💎'));
+    updateCategory(cat.id, { name: cat.name, icon: nextIcon, type: newType });
   };
 
   const handleDeleteCategory = (catId) => {
@@ -159,25 +179,82 @@ export default function CategoryModal({ onClose }) {
 
             {showNewCatForm && (
               <form onSubmit={handleCreateCategory} className="new-category-mini-card">
-                <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>Nueva Categoría</span>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, display: 'block', marginBottom: 6 }}>Nueva Categoría</span>
+
+                <label style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Tipo de Producto:</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 4, marginBottom: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewCatType('zapatos');
+                      if (!shoeIcons.includes(newCatIcon)) setNewCatIcon('👡');
+                    }}
+                    style={{
+                      padding: '6px 6px',
+                      borderRadius: 6,
+                      fontSize: '0.73rem',
+                      fontWeight: 700,
+                      border: newCatType === 'zapatos' ? '1px solid var(--accent)' : '1px solid var(--border)',
+                      background: newCatType === 'zapatos' ? 'var(--accent-bg)' : 'var(--bg-secondary)',
+                      color: newCatType === 'zapatos' ? 'var(--accent-light)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    👡 Calzado (Tallas)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewCatType('joyas');
+                      if (shoeIcons.includes(newCatIcon)) setNewCatIcon('💎');
+                    }}
+                    style={{
+                      padding: '6px 6px',
+                      borderRadius: 6,
+                      fontSize: '0.73rem',
+                      fontWeight: 700,
+                      border: newCatType === 'joyas' ? '1px solid var(--accent)' : '1px solid var(--border)',
+                      background: newCatType === 'joyas' ? 'var(--accent-bg)' : 'var(--bg-secondary)',
+                      color: newCatType === 'joyas' ? 'var(--accent-light)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    💎 Joya / Accesorio
+                  </button>
+                </div>
+
                 <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
                   <select
                     value={newCatIcon}
-                    onChange={e => setNewCatIcon(e.target.value)}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setNewCatIcon(val);
+                      if (shoeIcons.includes(val)) setNewCatType('zapatos');
+                      else if (['💎', '💍', '📿', '✨'].includes(val)) setNewCatType('joyas');
+                    }}
                     style={{ width: 55, padding: '4px 6px', textAlign: 'center' }}
                   >
                     <option value="👡">👡</option>
-                    <option value="💎">💎</option>
                     <option value="👠">👠</option>
+                    <option value="👟">👟</option>
+                    <option value="👢">👢</option>
+                    <option value="💎">💎</option>
+                    <option value="💍">💍</option>
                     <option value="👜">👜</option>
-                    <option value="👗">👗</option>
                     <option value="✨">✨</option>
                     <option value="📦">📦</option>
                   </select>
                   <input
-                    placeholder="Nombre (ej. Bolsos)"
+                    placeholder="Ej. Tacones, Sandalias, Joyas..."
                     value={newCatName}
-                    onChange={e => setNewCatName(e.target.value)}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setNewCatName(val);
+                      if (shoeKeywordsRegex.test(val)) {
+                        setNewCatType('zapatos');
+                        if (!shoeIcons.includes(newCatIcon)) setNewCatIcon('👡');
+                      }
+                    }}
                     style={{ flex: 1, padding: '4px 8px', fontSize: '0.85rem' }}
                     autoFocus
                   />
@@ -198,6 +275,7 @@ export default function CategoryModal({ onClose }) {
               {categories.map(c => {
                 const count = products.filter(p => p.category === c.id).length;
                 const isSelected = selectedCatId === c.id;
+                const isShoe = isShoeCategory(c);
                 return (
                   <div
                     key={c.id}
@@ -209,8 +287,13 @@ export default function CategoryModal({ onClose }) {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: '1.25rem' }}>{c.icon || '📁'}</span>
-                      <span className="cat-name">{c.name}</span>
+                      <span style={{ fontSize: '1.25rem' }}>{c.icon || (isShoe ? '👡' : '💎')}</span>
+                      <div>
+                        <span className="cat-name" style={{ display: 'block' }}>{c.name}</span>
+                        <small style={{ fontSize: '0.68rem', color: isShoe ? '#38bdf8' : '#c084fc' }}>
+                          {isShoe ? 'Calzado (Con Tallas)' : 'Joyería / Accesorios'}
+                        </small>
+                      </div>
                     </div>
                     <span className="cat-badge">{count} prods</span>
                   </div>
@@ -223,7 +306,7 @@ export default function CategoryModal({ onClose }) {
           <div className="subcategory-detail-pane">
             {currentCategory ? (
               <>
-                <div className="current-cat-header">
+                <div className="current-cat-header" style={{ flexWrap: 'wrap', gap: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
                     <span style={{ fontSize: '1.8rem' }}>{currentCategory.icon || '📁'}</span>
                     {editingCatName ? (
@@ -257,19 +340,40 @@ export default function CategoryModal({ onClose }) {
                         </button>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <h3>{currentCategory.name}</h3>
-                        <button
-                          type="button"
-                          className="icon-btn"
-                          title="Editar nombre de categoría"
-                          onClick={() => {
-                            setCatNameInput(currentCategory.name);
-                            setEditingCatName(true);
-                          }}
-                        >
-                          <Edit2 size={15} />
-                        </button>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <h3>{currentCategory.name}</h3>
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            title="Editar nombre de categoría"
+                            onClick={() => {
+                              setCatNameInput(currentCategory.name);
+                              setEditingCatName(true);
+                            }}
+                          >
+                            <Edit2 size={15} />
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Comportamiento:</span>
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${isShoeCategory(currentCategory) ? 'btn-primary' : 'btn-ghost'}`}
+                            style={{ padding: '2px 8px', fontSize: '0.72rem' }}
+                            onClick={() => handleChangeCategoryType(currentCategory, 'zapatos')}
+                          >
+                            👡 Calzado (Usa Tallas)
+                          </button>
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${!isShoeCategory(currentCategory) ? 'btn-primary' : 'btn-ghost'}`}
+                            style={{ padding: '2px 8px', fontSize: '0.72rem' }}
+                            onClick={() => handleChangeCategoryType(currentCategory, 'joyas')}
+                          >
+                            💎 Joyería (Sin Tallas)
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

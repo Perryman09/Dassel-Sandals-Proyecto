@@ -3,7 +3,7 @@ import {
   Truck, Package, Plus, Search, Trash2, Edit, CheckCircle,
   FileText, Banknote, ArrowRightLeft, CreditCard, Layers,
   Phone, Mail, MapPin, Building, Printer, X, AlertTriangle,
-  ChevronDown, ExternalLink, MessageCircle, DollarSign, Calendar
+  ChevronDown, ExternalLink, MessageCircle, DollarSign, Calendar, Eye
 } from 'lucide-react';
 import { useApp, SHOE_SIZES_EUR, SHOE_SIZES_US } from '../context/AppContext';
 import { formatCurrency, formatDateTime } from '../utils/format';
@@ -11,15 +11,19 @@ import { formatCurrency, formatDateTime } from '../utils/format';
 export default function PurchasesSuppliers({ onNavigate }) {
   const {
     products,
+    categories,
     suppliers,
     purchases,
     addPurchase,
+    updatePurchase,
     cancelPurchase,
     getNextPurchaseNumber,
     addSupplier,
     updateSupplier,
     deleteSupplier,
     getNextSupplierCode,
+    isShoeCategory,
+    getCategoryInfo,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('purchases'); // 'purchases' | 'suppliers'
@@ -28,11 +32,13 @@ export default function PurchasesSuppliers({ onNavigate }) {
 
   // Modales
   const [showNewPurchaseModal, setShowNewPurchaseModal] = useState(false);
+  const [editingPurchase, setEditingPurchase] = useState(null);
+  const [detailPurchase, setDetailPurchase] = useState(null);
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
   const [viewingPurchase, setViewingPurchase] = useState(null);
 
-  // --- ESTADO PARA NUEVA COMPRA ---
+  // --- ESTADO PARA NUEVA / EDITAR COMPRA ---
   const [purchaseSupplierId, setPurchaseSupplierId] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -64,6 +70,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
 
   // Resetear formulario de compra
   const resetPurchaseForm = () => {
+    setEditingPurchase(null);
     setPurchaseSupplierId(suppliers[0]?.id ? String(suppliers[0].id) : '');
     setInvoiceNumber('');
     setPurchaseDate(new Date().toISOString().split('T')[0]);
@@ -81,6 +88,46 @@ export default function PurchasesSuppliers({ onNavigate }) {
   const handleOpenNewPurchase = () => {
     resetPurchaseForm();
     setShowNewPurchaseModal(true);
+  };
+
+  const handleOpenEditPurchase = (purchase) => {
+    setEditingPurchase(purchase);
+    setPurchaseSupplierId(purchase.supplierId ? String(purchase.supplierId) : '');
+    setInvoiceNumber(purchase.invoiceNumber || '');
+    setPurchaseDate(
+      purchase.date ? String(purchase.date).split('T')[0] : new Date().toISOString().split('T')[0]
+    );
+    setPaymentMethod(purchase.paymentMethod || 'Transferencia');
+    setPurchaseNotes(purchase.notes || '');
+    setPurchaseItems(
+      (purchase.items || []).map(it => ({
+        ...it,
+        sizesBreakdown: it.sizesBreakdown ? { ...it.sizesBreakdown } : null,
+      }))
+    );
+    setSelectedProductId('');
+    setProductSearchTerm('');
+    setShowProductDropdown(false);
+    setItemQuantity('1');
+    setItemUnitCost('');
+    setItemSizesBreakdown({});
+    setShowNewPurchaseModal(true);
+  };
+
+  const handleEditPurchaseItemRow = (index) => {
+    const item = purchaseItems[index];
+    if (!item) return;
+    setSelectedProductId(String(item.productId));
+    setItemUnitCost(String(item.unitCost || 0));
+    if (item.sizesBreakdown && Object.keys(item.sizesBreakdown).length > 0) {
+      setItemSizesBreakdown({ ...item.sizesBreakdown });
+      const firstSz = Number(Object.keys(item.sizesBreakdown)[0]);
+      setItemSizeSystem(firstSz >= 30 ? 'eur' : 'us');
+    } else {
+      setItemSizesBreakdown({});
+    }
+    setItemQuantity(String(item.quantity || 1));
+    setPurchaseItems(prev => prev.filter((_, idx) => idx !== index));
   };
 
   const handleSelectProduct = (prod) => {
@@ -126,7 +173,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
       return;
     }
 
-    const isShoe = prod.category === 'zapatos';
+    const isShoe = isShoeCategory(prod.category, categories);
     const hasSizes = isShoe && Object.keys(itemSizesBreakdown).length > 0;
     const qty = hasSizes
       ? Object.values(itemSizesBreakdown).reduce((acc, n) => acc + (Number(n) || 0), 0)
@@ -174,7 +221,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
 
     const supplier = suppliers.find(s => String(s.id) === String(purchaseSupplierId));
     const totalAmount = purchaseItems.reduce((acc, it) => acc + (Number(it.subtotal) || 0), 0);
-    const purchaseNum = getNextPurchaseNumber();
+    const purchaseNum = editingPurchase ? editingPurchase.purchaseNumber : getNextPurchaseNumber();
 
     const purchaseData = {
       purchaseNumber: purchaseNum,
@@ -185,13 +232,20 @@ export default function PurchasesSuppliers({ onNavigate }) {
       paymentMethod,
       items: purchaseItems,
       total: totalAmount,
-      status: 'received',
+      status: editingPurchase ? editingPurchase.status : 'received',
       notes: purchaseNotes.trim(),
     };
 
-    addPurchase(purchaseData);
-    setShowNewPurchaseModal(false);
-    alert(`✅ Compra ${purchaseNum} registrada exitosamente. Se ha actualizado el inventario y Kardex.`);
+    if (editingPurchase) {
+      updatePurchase(editingPurchase.id, purchaseData);
+      setShowNewPurchaseModal(false);
+      setEditingPurchase(null);
+      alert(`✅ Compra ${purchaseNum} actualizada exitosamente. El inventario se ha sincronizado.`);
+    } else {
+      addPurchase(purchaseData);
+      setShowNewPurchaseModal(false);
+      alert(`✅ Compra ${purchaseNum} registrada exitosamente. Se ha actualizado el inventario y Kardex.`);
+    }
   };
 
   const handleCancelPurchase = (purchase) => {
@@ -206,7 +260,10 @@ export default function PurchasesSuppliers({ onNavigate }) {
   const handleOpenSupplierModal = (sup = null) => {
     if (sup) {
       setEditingSupplier(sup);
-      setSupplierForm({ ...sup });
+      setSupplierForm({
+        ...sup,
+        phone: String(sup.phone || '').replace(/\D/g, '').slice(0, 8),
+      });
     } else {
       setEditingSupplier(null);
       setSupplierForm({
@@ -215,7 +272,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
         phone: '',
         email: '',
         ruc: '',
-        category: 'zapatos',
+        category: categories[0]?.id || 'zapatos',
         address: '',
         notes: '',
       });
@@ -227,20 +284,27 @@ export default function PurchasesSuppliers({ onNavigate }) {
   const handleSaveSupplier = (e) => {
     e.preventDefault();
     const errors = {};
+    const cleanPhone = String(supplierForm.phone || '').replace(/\D/g, '').slice(0, 8);
     if (!supplierForm.name.trim()) errors.name = 'El nombre de la empresa es obligatorio';
-    if (!supplierForm.phone.trim()) errors.phone = 'El teléfono es obligatorio';
+    if (!cleanPhone) {
+      errors.phone = 'El teléfono es obligatorio';
+    } else if (cleanPhone.length !== 8) {
+      errors.phone = 'El teléfono debe tener exactamente 8 dígitos numéricos';
+    }
 
     if (Object.keys(errors).length > 0) {
       setSupplierErrors(errors);
       return;
     }
 
+    const payload = { ...supplierForm, phone: cleanPhone };
+
     if (editingSupplier) {
-      updateSupplier(editingSupplier.id, supplierForm);
+      updateSupplier(editingSupplier.id, payload);
     } else {
       const code = getNextSupplierCode();
       addSupplier({
-        ...supplierForm,
+        ...payload,
         code,
         status: 'active',
         createdAt: new Date().toISOString().split('T')[0],
@@ -518,7 +582,24 @@ export default function PurchasesSuppliers({ onNavigate }) {
                         <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
                           <button
                             className="icon-btn"
-                            title="Ver Comprobante de Compra"
+                            title="Ver Detalle de Compra"
+                            onClick={() => setDetailPurchase(p)}
+                          >
+                            <Eye size={16} />
+                          </button>
+                          {p.status === 'received' && (
+                            <button
+                              className="icon-btn"
+                              title="Editar Compra"
+                              style={{ color: 'var(--info)' }}
+                              onClick={() => handleOpenEditPurchase(p)}
+                            >
+                              <Edit size={16} />
+                            </button>
+                          )}
+                          <button
+                            className="icon-btn"
+                            title="Ver Comprobante Imprimible"
                             onClick={() => setViewingPurchase(p)}
                           >
                             <FileText size={16} />
@@ -558,12 +639,22 @@ export default function PurchasesSuppliers({ onNavigate }) {
                 .filter(p => p.supplierId === s.id && p.status === 'received')
                 .reduce((acc, p) => acc + (Number(p.total) || 0), 0);
 
+              const supCatInfo =
+                s.category === 'general'
+                  ? { name: 'General / Varios', icon: '📦', isShoe: false }
+                  : getCategoryInfo(s.category, categories);
+
               return (
                 <div key={s.id} className="supplier-card">
                   <div className="supplier-card-header">
                     <div>
-                      <span className="code-pill">{s.code}</span>
-                      <h3 style={{ marginTop: 4 }}>{s.name}</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <span className="code-pill">{s.code}</span>
+                        <span className={`cat-badge ${supCatInfo.isShoe ? 'cat-zapatos' : 'cat-joyas'}`} style={{ fontSize: '0.72rem' }}>
+                          {supCatInfo.icon} {supCatInfo.name}
+                        </span>
+                      </div>
+                      <h3 style={{ marginTop: 6 }}>{s.name}</h3>
                       {s.contactPerson && (
                         <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                           Contacto: <strong>{s.contactPerson}</strong>
@@ -640,14 +731,18 @@ export default function PurchasesSuppliers({ onNavigate }) {
         </div>
       )}
 
-      {/* MODAL 1: REGISTRAR NUEVA COMPRA DE MERCANCÍA */}
+      {/* MODAL 1: REGISTRAR / EDITAR COMPRA DE MERCANCÍA */}
       {showNewPurchaseModal && (
         <div className="modal-overlay" onClick={() => setShowNewPurchaseModal(false)}>
           <div className="modal modal-xl" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Truck size={22} color="var(--accent)" />
-                <h2>Registrar Compra de Mercancía (Entrada de Stock)</h2>
+                <h2>
+                  {editingPurchase
+                    ? `Editar Compra de Mercancía (${editingPurchase.purchaseNumber})`
+                    : 'Registrar Compra de Mercancía (Entrada de Stock)'}
+                </h2>
               </div>
               <button className="icon-btn" onClick={() => setShowNewPurchaseModal(false)}>
                 <X size={20} />
@@ -657,7 +752,10 @@ export default function PurchasesSuppliers({ onNavigate }) {
             <div className="modal-body">
               <div className="info-banner" style={{ marginBottom: 16 }}>
                 <p>
-                  📦 Folio automático: <strong>{getNextPurchaseNumber()}</strong> · Al registrar esta compra, las cantidades se <strong>sumarán automáticamente al inventario</strong>, se actualizará el precio de costo del producto y se registrará la entrada en el Kardex.
+                  📦 Folio: <strong>{editingPurchase ? editingPurchase.purchaseNumber : getNextPurchaseNumber()}</strong> ·{' '}
+                  {editingPurchase
+                    ? 'Al guardar los cambios, el sistema ajustará automáticamente las diferencias de stock y tallas en el inventario.'
+                    : 'Al registrar esta compra, las cantidades se sumarán automáticamente al inventario, se actualizará el precio de costo del producto y se registrará la entrada en el Kardex.'}
                 </p>
               </div>
 
@@ -772,6 +870,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
                         ) : (
                           filteredProductsForPurchase.slice(0, 15).map(prod => {
                             const isSelected = String(prod.id) === String(selectedProductId);
+                            const catInfo = getCategoryInfo(prod.category, categories);
                             return (
                               <div
                                 key={prod.id}
@@ -783,7 +882,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
                                   <div className="prod-item-info">
                                     <strong className="prod-item-name">{prod.name}</strong>
                                     <span className="prod-item-sub">
-                                      {prod.category === 'zapatos' ? '👠 Calzado' : '💎 Joyas'}
+                                      {catInfo.icon} {catInfo.name}
                                       {prod.subcategory ? ` · ${prod.subcategory}` : ''}
                                       {prod.color ? ` · ${prod.color}` : ''}
                                     </span>
@@ -825,7 +924,10 @@ export default function PurchasesSuppliers({ onNavigate }) {
                             {selectedProduct.name}
                           </h4>
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                            {selectedProduct.category === 'zapatos' ? '👠 Calzado / Tacones' : '💎 Joyería'}
+                            {(() => {
+                              const catInfo = getCategoryInfo(selectedProduct.category, categories);
+                              return `${catInfo.icon} ${catInfo.name}`;
+                            })()}
                             {selectedProduct.subcategory ? ` · ${selectedProduct.subcategory}` : ''}
                             {selectedProduct.color ? ` · Color: ${selectedProduct.color}` : ''}
                             {' · '}
@@ -869,7 +971,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
                         </small>
                       </div>
 
-                      {selectedProduct?.category !== 'zapatos' && (
+                      {!isShoeCategory(selectedProduct?.category, categories) && (
                         <div className="form-group flex-1">
                           <label>Cantidad a Recibir (unidades) *</label>
                           <input
@@ -884,7 +986,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
                     </div>
 
                     {/* SI EL PRODUCTO ES CALZADO / TACONES: DESGLOSE DE TALLAS */}
-                    {selectedProduct?.category === 'zapatos' && (
+                    {isShoeCategory(selectedProduct?.category, categories) && (
                       <div className="purchase-sizes-matrix-box" style={{ marginTop: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
                           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
@@ -950,7 +1052,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
                           <th style={{ textAlign: 'center', width: '100px' }}>CANTIDAD</th>
                           <th style={{ textAlign: 'right', width: '140px' }}>COSTO UNIT. (C$)</th>
                           <th style={{ textAlign: 'right', width: '140px' }}>SUBTOTAL (C$)</th>
-                          <th style={{ textAlign: 'center', width: '80px' }}>ACCIONES</th>
+                          <th style={{ textAlign: 'center', width: '100px' }}>ACCIONES</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -978,15 +1080,26 @@ export default function PurchasesSuppliers({ onNavigate }) {
                                 <strong style={{ color: 'var(--accent)' }}>{formatCurrency(it.subtotal)}</strong>
                               </td>
                               <td style={{ textAlign: 'center' }}>
-                                <button
-                                  type="button"
-                                  className="icon-btn"
-                                  onClick={() => handleRemovePurchaseItem(idx)}
-                                  style={{ color: 'var(--danger)' }}
-                                  title="Quitar de la lista"
-                                >
-                                  <Trash2 size={15} />
-                                </button>
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
+                                  <button
+                                    type="button"
+                                    className="icon-btn"
+                                    onClick={() => handleEditPurchaseItemRow(idx)}
+                                    style={{ color: 'var(--info)' }}
+                                    title="Modificar cantidades / tallas / costo de este artículo"
+                                  >
+                                    <Edit size={15} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="icon-btn"
+                                    onClick={() => handleRemovePurchaseItem(idx)}
+                                    style={{ color: 'var(--danger)' }}
+                                    title="Quitar de la lista"
+                                  >
+                                    <Trash2 size={15} />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))
@@ -1019,7 +1132,14 @@ export default function PurchasesSuppliers({ onNavigate }) {
             </div>
 
             <div className="modal-actions">
-              <button type="button" className="btn btn-ghost" onClick={() => setShowNewPurchaseModal(false)}>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => {
+                  setShowNewPurchaseModal(false);
+                  setEditingPurchase(null);
+                }}
+              >
                 Cancelar
               </button>
               <button
@@ -1028,7 +1148,10 @@ export default function PurchasesSuppliers({ onNavigate }) {
                 onClick={handleSavePurchase}
                 disabled={purchaseItems.length === 0}
               >
-                <CheckCircle size={16} /> Registrar Compra &amp; Ingresar al Inventario
+                <CheckCircle size={16} />{' '}
+                {editingPurchase
+                  ? 'Guardar Cambios de Compra'
+                  : 'Registrar Compra & Ingresar al Inventario'}
               </button>
             </div>
           </div>
@@ -1068,11 +1191,20 @@ export default function PurchasesSuppliers({ onNavigate }) {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Teléfono / WhatsApp *</label>
+                    <label>Teléfono / WhatsApp (8 dígitos) *</label>
                     <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={8}
                       value={supplierForm.phone}
-                      onChange={e => setSupplierForm({ ...supplierForm, phone: e.target.value })}
-                      placeholder="Ej: 8822 1100"
+                      onChange={e =>
+                        setSupplierForm({
+                          ...supplierForm,
+                          phone: e.target.value.replace(/\D/g, '').slice(0, 8),
+                        })
+                      }
+                      placeholder="Ej: 88221100 (8 dígitos)"
                     />
                     {supplierErrors.phone && <span className="field-error">{supplierErrors.phone}</span>}
                   </div>
@@ -1093,8 +1225,11 @@ export default function PurchasesSuppliers({ onNavigate }) {
                       value={supplierForm.category}
                       onChange={e => setSupplierForm({ ...supplierForm, category: e.target.value })}
                     >
-                      <option value="zapatos">👠 Calzado &amp; Tacones</option>
-                      <option value="joyas">💎 Joyería &amp; Accesorios</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.icon || (isShoeCategory(cat.id, categories) ? '👠' : '💎')} {cat.name}
+                        </option>
+                      ))}
                       <option value="general">📦 General / Varios</option>
                     </select>
                   </div>
@@ -1143,7 +1278,165 @@ export default function PurchasesSuppliers({ onNavigate }) {
         </div>
       )}
 
-      {/* MODAL 3: VER COMPROBANTE / FACTURA DE COMPRA */}
+      {/* MODAL 3: VER DETALLE DE COMPRA (OJITO) */}
+      {detailPurchase && (
+        <div className="modal-overlay" onClick={() => setDetailPurchase(null)}>
+          <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Eye size={20} color="var(--accent)" />
+                <h2>Detalle de Compra — {detailPurchase.purchaseNumber}</h2>
+              </div>
+              <button className="icon-btn" onClick={() => setDetailPurchase(null)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="sale-detail-grid" style={{ marginBottom: 16 }}>
+                <div>
+                  <span>Proveedor</span>
+                  <strong>{detailPurchase.supplierName || 'Proveedor General'}</strong>
+                </div>
+                <div>
+                  <span>No. Factura / Referencia</span>
+                  <strong>{detailPurchase.invoiceNumber || 'S/N'}</strong>
+                </div>
+                <div>
+                  <span>Fecha de Registro</span>
+                  <strong>{formatDateTime(detailPurchase.date)}</strong>
+                </div>
+                <div>
+                  <span>Método de Pago</span>
+                  <strong>{detailPurchase.paymentMethod}</strong>
+                </div>
+                <div>
+                  <span>Total Piezas / Pares</span>
+                  <strong>
+                    {(detailPurchase.items || []).reduce((acc, it) => acc + (Number(it.quantity) || 0), 0)} unidades
+                  </strong>
+                </div>
+                <div>
+                  <span>Estado</span>
+                  <span className={`badge ${detailPurchase.status === 'received' ? 'badge-success' : 'badge-danger'}`}>
+                    {detailPurchase.status === 'received' ? 'Recibida en Inventario' : 'Anulada'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="table-wrapper">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Código</th>
+                      <th>Producto &amp; Tallas Recibidas</th>
+                      <th style={{ textAlign: 'center' }}>Cantidad</th>
+                      <th style={{ textAlign: 'right' }}>Costo Unit. (C$)</th>
+                      <th style={{ textAlign: 'right' }}>Subtotal (C$)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(detailPurchase.items || []).map((it, idx) => {
+                      const catInfo = getCategoryInfo(it.category, categories);
+                      return (
+                        <tr key={idx}>
+                          <td><span className="code-pill">{it.productCode}</span></td>
+                          <td>
+                            <div style={{ fontWeight: 600 }}>{it.productName}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                              {catInfo.icon} {catInfo.name}
+                            </div>
+                            {it.sizesBreakdown && Object.keys(it.sizesBreakdown).length > 0 && (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                                {Object.entries(it.sizesBreakdown).map(([sz, q]) => (
+                                  <span
+                                    key={sz}
+                                    style={{
+                                      fontSize: '0.73rem',
+                                      padding: '2px 8px',
+                                      borderRadius: 6,
+                                      background: 'rgba(245, 158, 11, 0.14)',
+                                      color: 'var(--accent-light)',
+                                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    👟 Talla #{sz}: {q} par(es)
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <strong>{it.quantity}</strong>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>{formatCurrency(it.unitCost)}</td>
+                          <td style={{ textAlign: 'right' }}>
+                            <strong style={{ color: 'var(--accent)' }}>{formatCurrency(it.subtotal)}</strong>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {detailPurchase.notes && (
+                <div
+                  style={{
+                    marginTop: 14,
+                    padding: '10px 14px',
+                    background: 'rgba(255,255,255,0.03)',
+                    borderRadius: 8,
+                    border: '1px solid var(--border)',
+                    fontSize: '0.85rem',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  <strong>Notas / Observaciones:</strong> {detailPurchase.notes}
+                </div>
+              )}
+
+              <div className="sale-totals" style={{ marginTop: 16 }}>
+                <div className="total-final">
+                  <span>Total de la Compra:</span>
+                  <span>{formatCurrency(detailPurchase.total)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn btn-ghost" onClick={() => setDetailPurchase(null)}>
+                Cerrar
+              </button>
+              {detailPurchase.status === 'received' && (
+                <button
+                  className="btn btn-outline"
+                  onClick={() => {
+                    const pToEdit = detailPurchase;
+                    setDetailPurchase(null);
+                    handleOpenEditPurchase(pToEdit);
+                  }}
+                >
+                  <Edit size={16} /> Editar Compra
+                </button>
+              )}
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  const pToPrint = detailPurchase;
+                  setDetailPurchase(null);
+                  setViewingPurchase(pToPrint);
+                }}
+              >
+                <Printer size={16} /> Ver Comprobante Imprimible
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: VER COMPROBANTE / FACTURA DE COMPRA */}
       {viewingPurchase && (
         <div className="modal-overlay" onClick={() => setViewingPurchase(null)}>
           <div className="modal modal-md" onClick={e => e.stopPropagation()}>

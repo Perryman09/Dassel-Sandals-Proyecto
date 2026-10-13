@@ -2,10 +2,11 @@ import {
   Eye, X, Tag, Package, Edit, Calendar, DollarSign,
   TrendingUp, CheckCircle, AlertTriangle, Layers, Shirt, Palette
 } from 'lucide-react';
-import { SHOE_SIZES_EUR, SHOE_SIZES_US } from '../context/AppContext';
+import { useApp, SHOE_SIZES_EUR, SHOE_SIZES_US } from '../context/AppContext';
 import { formatCurrency } from '../utils/format';
 
 export default function ProductDetailModal({ product, onClose, onEdit, onAdjust, onBarcode }) {
+  const { isShoeCategory, getCategoryInfo } = useApp();
   if (!product) return null;
 
   // Helper para parsear sizesStock de forma segura
@@ -26,7 +27,8 @@ export default function ProductDetailModal({ product, onClose, onEdit, onAdjust,
   };
 
   const sizes = parseSizes(product);
-  const isShoe = product.category === 'zapatos';
+  const isShoe = isShoeCategory(product);
+  const catInfo = getCategoryInfo(product);
   const hasShoeSizes = isShoe && Object.keys(sizes).length > 0;
 
   const cost = Number(product.costPrice) || 0;
@@ -52,8 +54,8 @@ export default function ProductDetailModal({ product, onClose, onEdit, onAdjust,
                 <code style={{ fontSize: '0.8rem', background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: 4 }}>
                   {product.code}
                 </code>
-                <span className={`badge badge-sm ${product.category === 'zapatos' ? 'badge-info' : 'badge-purple'}`}>
-                  {product.category === 'zapatos' ? '👡 Calzado' : '💎 Joyería'} · {product.subcategory}
+                <span className={`badge badge-sm ${isShoe ? 'badge-info' : 'badge-purple'}`}>
+                  {catInfo.icon} {catInfo.name} · {product.subcategory}
                 </span>
                 <span className={`badge badge-sm ${product.status === 'active' ? 'badge-success' : 'badge-danger'}`}>
                   {product.status === 'active' ? '● Activo' : '● Inactivo'}

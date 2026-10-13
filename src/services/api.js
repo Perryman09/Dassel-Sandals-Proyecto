@@ -188,6 +188,13 @@ export const api = {
     });
   },
 
+  async updatePurchase(id, purchaseData) {
+    return request(`/purchases/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(purchaseData),
+    });
+  },
+
   async cancelPurchase(id) {
     return request(`/purchases/${id}/cancel`, {
       method: 'PATCH',

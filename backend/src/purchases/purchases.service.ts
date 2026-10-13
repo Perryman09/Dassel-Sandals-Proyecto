@@ -276,4 +276,109 @@ export class PurchasesService {
       });
     });
   }
+
+  async update(id: number, dto: any) {
+    const existing = await this.findOne(id);
+    if (!dto.items || dto.items.length === 0) {
+      throw new BadRequestException('La compra debe contener al menos un producto');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Si estaba recibida, revertir el stock anterior antes de aplicar los nuevos ítems
+      if (existing.status === 'received') {
+        for (const oldIt of existing.items) {
+          if (oldIt.productId) {
+            const prod = await tx.product.findUnique({ where: { id: oldIt.productId } });
+            if (prod) {
+              const revertedStock = Math.max(0, prod.stock - oldIt.quantity);
+              let revertedSizes = prod.sizesStock as Record<string, number> | null;
+              if (oldIt.sizesBreakdown && typeof oldIt.sizesBreakdown === 'object') {
+                const current = (revertedSizes || {}) as Record<string, number>;
+                const next = { ...current };
+                for (const [sz, q] of Object.entries(oldIt.sizesBreakdown as Record<string, number>)) {
+                  next[sz] = Math.max(0, (Number(next[sz]) || 0) - (Number(q) || 0));
+                }
+                revertedSizes = next;
+              }
+              await tx.product.update({
+                where: { id: prod.id },
+                data: { stock: revertedStock, sizesStock: revertedSizes },
+              });
+            }
+          }
+        }
+      }
+
+      // 2. Eliminar items anteriores y crear los nuevos
+      await tx.purchaseItem.deleteMany({ where: { purchaseId: id } });
+
+      let totalAmount = 0;
+      const itemsToCreate = [];
+      for (const it of dto.items) {
+        const lineTotal = Number(it.quantity) * Number(it.unitCost);
+        totalAmount += lineTotal;
+        itemsToCreate.push({
+          productId: it.productId || null,
+          productCode: it.productCode,
+          productName: it.productName,
+          category: it.category || null,
+          quantity: Number(it.quantity),
+          unitCost: Number(it.unitCost),
+          subtotal: lineTotal,
+          sizesBreakdown: it.sizesBreakdown || null,
+        });
+      }
+
+      // 3. Si la compra sigue recibida, sumar el nuevo stock y tallas
+      if (existing.status === 'received') {
+        for (const it of itemsToCreate) {
+          if (it.productId) {
+            const prod = await tx.product.findUnique({ where: { id: it.productId } });
+            if (prod) {
+              let updatedSizes = prod.sizesStock as Record<string, number> | null;
+              if (it.sizesBreakdown && typeof it.sizesBreakdown === 'object') {
+                const current = (updatedSizes || {}) as Record<string, number>;
+                const next = { ...current };
+                for (const [sz, q] of Object.entries(it.sizesBreakdown as Record<string, number>)) {
+                  next[sz] = (Number(next[sz]) || 0) + (Number(q) || 0);
+                }
+                updatedSizes = next;
+              }
+              const newStock = prod.stock + it.quantity;
+              await tx.product.update({
+                where: { id: prod.id },
+                data: {
+                  stock: newStock,
+                  costPrice: it.unitCost,
+                  sizesStock: updatedSizes,
+                },
+              });
+            }
+          }
+        }
+      }
+
+      // 4. Actualizar la cabecera de la compra
+      return tx.purchase.update({
+        where: { id },
+        data: {
+          invoiceNumber: dto.invoiceNumber || existing.invoiceNumber,
+          supplierId: dto.supplierId !== undefined ? dto.supplierId : existing.supplierId,
+          supplierName: dto.supplierName || existing.supplierName,
+          date: dto.date ? new Date(dto.date) : existing.date,
+          total: totalAmount,
+          paymentMethod: dto.paymentMethod || existing.paymentMethod,
+          notes: dto.notes !== undefined ? dto.notes : existing.notes,
+          items: {
+            create: itemsToCreate,
+          },
+        },
+        include: {
+          items: true,
+          supplier: true,
+          user: { select: { id: true, username: true, name: true, role: true } },
+        },
+      });
+    });
+  }
 }

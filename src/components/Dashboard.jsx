@@ -9,9 +9,10 @@ import { DailySalesChart, CategoryDonutChart } from './InteractiveCharts';
 import CashRegisterModal from './CashRegisterModal';
 
 export default function Dashboard({ onNavigate }) {
-  const { products, sales, getStats } = useApp();
+  const { products, sales, categories, getStats, getCashBalance, isShoeCategory } = useApp();
   const [showCashModal, setShowCashModal] = useState(false);
   const stats = getStats();
+  const cashInfo = getCashBalance();
 
   const recentSales = [...sales]
     .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -65,9 +66,11 @@ export default function Dashboard({ onNavigate }) {
     .forEach(s => {
       (s.items || []).forEach(it => {
         const prod = products.find(p => p.id === it.productId);
-        const cat = prod ? prod.category : it.productCode.startsWith('DS-ZAP') ? 'zapatos' : 'joyas';
+        const isShoe = prod
+          ? isShoeCategory(prod.category, categories)
+          : String(it.productCode || '').startsWith('DS-ZAP') || Boolean(it.size);
         const itemSub = Number(it.subtotal) || Number(it.price) * Number(it.quantity);
-        if (cat === 'zapatos') {
+        if (isShoe) {
           zapRevenue += itemSub;
           zapUnits += Number(it.quantity);
         } else {
@@ -77,6 +80,9 @@ export default function Dashboard({ onNavigate }) {
       });
     });
 
+  const shoeProducts = products.filter(p => isShoeCategory(p.category, categories));
+  const jewelryProducts = products.filter(p => !isShoeCategory(p.category, categories));
+
   return (
     <div className="page">
       <div className="page-header">
@@ -85,8 +91,45 @@ export default function Dashboard({ onNavigate }) {
           <p>Visión general de Dassel Sandals — Moneda oficial: Córdobas (C$)</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-ghost" onClick={() => setShowCashModal(true)}>
-            <Banknote size={18} color="var(--accent)" /> Control de Caja &amp; Gastos
+          <button
+            className="btn btn-ghost"
+            onClick={() => setShowCashModal(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+          >
+            <Banknote size={18} color="var(--accent)" />
+            <span>Control de Caja &amp; Gastos</span>
+            <span
+              style={{
+                fontSize: '0.68rem',
+                fontWeight: 800,
+                padding: '2px 7px',
+                borderRadius: 999,
+                background:
+                  cashInfo.shiftStatus === 'open'
+                    ? 'rgba(34, 197, 94, 0.16)'
+                    : cashInfo.shiftStatus === 'closed'
+                    ? 'rgba(239, 68, 68, 0.16)'
+                    : 'rgba(245, 158, 11, 0.16)',
+                color:
+                  cashInfo.shiftStatus === 'open'
+                    ? 'var(--success)'
+                    : cashInfo.shiftStatus === 'closed'
+                    ? 'var(--danger)'
+                    : 'var(--accent)',
+                border:
+                  cashInfo.shiftStatus === 'open'
+                    ? '1px solid rgba(34, 197, 94, 0.4)'
+                    : cashInfo.shiftStatus === 'closed'
+                    ? '1px solid rgba(239, 68, 68, 0.4)'
+                    : '1px solid rgba(245, 158, 11, 0.4)',
+              }}
+            >
+              {cashInfo.shiftStatus === 'open'
+                ? '● Abierta'
+                : cashInfo.shiftStatus === 'closed'
+                ? '● Cerrada'
+                : '● Sin abrir'}
+            </span>
           </button>
           <button className="btn btn-primary" onClick={() => onNavigate('new-sale')}>
             <ShoppingCart size={18} /> Nueva Venta
@@ -114,7 +157,9 @@ export default function Dashboard({ onNavigate }) {
       <div className="charts-dashboard-row">
         <div className="dash-card flex-2">
           <div className="dash-card-header">
-            <h3><TrendingUp size={18} color="var(--accent)" /> Tendencia de Ingresos Diarios (C$)</h3>
+            <h3>
+              <TrendingUp size={18} color="var(--accent)" /> Panel &amp; Gráfica de Ventas (Diarias, Semanales, Quincenales y Mensuales)
+            </h3>
           </div>
           <DailySalesChart sales={sales} />
         </div>
@@ -162,7 +207,10 @@ export default function Dashboard({ onNavigate }) {
                       <td>
                         <strong>{p.name}</strong>
                         <small style={{ display: 'block', color: 'var(--text-muted)' }}>
-                          {p.subcategory} {p.category === 'zapatos' && p.sizesStock ? `· ${Object.entries(p.sizesStock).filter(([, q]) => q > 0).map(([sz, q]) => `T${sz}(${q})`).join(' ')}` : ''}
+                          {p.subcategory}{' '}
+                          {isShoeCategory(p.category, categories) && p.sizesStock
+                            ? `· ${Object.entries(p.sizesStock).filter(([, q]) => q > 0).map(([sz, q]) => `T${sz}(${q})`).join(' ')}`
+                            : ''}
                         </small>
                       </td>
                       <td>
@@ -234,27 +282,25 @@ export default function Dashboard({ onNavigate }) {
           <div className="category-summary">
             <div className="category-block">
               <div className="cat-header">
-                <span className="cat-emoji">👡</span>
+                <span className="cat-emoji">👠</span>
                 <div>
                   <h4>Calzado &amp; Sandalias</h4>
-                  <small style={{ color: 'var(--text-muted)' }}>Huaraches, Plataformas, Flats con matriz de tallas</small>
+                  <small style={{ color: 'var(--text-muted)' }}>Huaraches, Plataformas, Tacones, Flats con matriz de tallas</small>
                 </div>
               </div>
               <div className="cat-stats">
                 <div>
-                  <span>{products.filter(p => p.category === 'zapatos').length}</span>
+                  <span>{shoeProducts.length}</span>
                   <small>Modelos</small>
                 </div>
                 <div>
-                  <span>{products.filter(p => p.category === 'zapatos').reduce((s, p) => s + (Number(p.stock) || 0), 0)}</span>
+                  <span>{shoeProducts.reduce((s, p) => s + (Number(p.stock) || 0), 0)}</span>
                   <small>Pares en Stock</small>
                 </div>
                 <div>
                   <span>
                     {formatCurrency(
-                      products
-                        .filter(p => p.category === 'zapatos')
-                        .reduce((s, p) => s + (Number(p.stock) || 0) * (Number(p.salePrice) || 0), 0)
+                      shoeProducts.reduce((s, p) => s + (Number(p.stock) || 0) * (Number(p.salePrice) || 0), 0)
                     )}
                   </span>
                   <small>Valor Comercial (C$)</small>
@@ -272,19 +318,17 @@ export default function Dashboard({ onNavigate }) {
               </div>
               <div className="cat-stats">
                 <div>
-                  <span>{products.filter(p => p.category === 'joyas').length}</span>
+                  <span>{jewelryProducts.length}</span>
                   <small>Modelos</small>
                 </div>
                 <div>
-                  <span>{products.filter(p => p.category === 'joyas').reduce((s, p) => s + (Number(p.stock) || 0), 0)}</span>
+                  <span>{jewelryProducts.reduce((s, p) => s + (Number(p.stock) || 0), 0)}</span>
                   <small>Pzas en Stock</small>
                 </div>
                 <div>
                   <span>
                     {formatCurrency(
-                      products
-                        .filter(p => p.category === 'joyas')
-                        .reduce((s, p) => s + (Number(p.stock) || 0) * (Number(p.salePrice) || 0), 0)
+                      jewelryProducts.reduce((s, p) => s + (Number(p.stock) || 0) * (Number(p.salePrice) || 0), 0)
                     )}
                   </span>
                   <small>Valor Comercial (C$)</small>

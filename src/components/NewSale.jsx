@@ -10,11 +10,13 @@ import { formatCurrency } from '../utils/format';
 import ReceiptModal from './ReceiptModal';
 
 export default function NewSale({ onNavigate }) {
-  const { products, addSale, getNextSaleNumber } = useApp();
+  const { products, addSale, getNextSaleNumber, categories, isShoeCategory, getCategoryInfo } = useApp();
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('all');
   const [cart, setCart] = useState([]);
   const [discount, setDiscount] = useState('');
+  const [applyWholesale, setApplyWholesale] = useState(true);
+  const [customWholesalePct, setCustomWholesalePct] = useState(null); // null = automático por piezas, o 5 | 10 | 15
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
@@ -38,7 +40,7 @@ export default function NewSale({ onNavigate }) {
   };
 
   const availableProducts = products.filter(p => {
-    if (p.status !== 'active' || Number(p.stock) <= 0) return false;
+    if (p.status !== 'active') return false;
     const q = search.toLowerCase();
     const matchSearch =
       !q ||
@@ -51,8 +53,9 @@ export default function NewSale({ onNavigate }) {
   });
 
   const handleProductClick = (product) => {
+    if (Number(product.stock) <= 0) return;
     // Si es calzado y tiene matriz de tallas, abrir selector de talla
-    if (product.category === 'zapatos' && product.sizesStock && Object.keys(product.sizesStock).length > 0) {
+    if (isShoeCategory(product) && product.sizesStock && Object.keys(product.sizesStock).length > 0) {
       setSizePickerProduct(product);
     } else {
       addToCart(product, '');
@@ -117,14 +120,35 @@ export default function NewSale({ onNavigate }) {
   // Cálculo estrictamente numérico del subtotal
   const subtotal = cart.reduce((acc, i) => acc + (Number(i.subtotal) || 0), 0);
 
-  // Cálculo de Descuento de Mayoreo oficial:
+  // Cálculo de Descuento de Mayoreo oficial (con casilla de activación y selección de cualquier escala):
   // De 3 a 4 piezas -> 5%
   // De 5 a 7 piezas -> 10%
   // De 8 a más piezas -> 15%
   const totalPiecesInCart = cart.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0);
   const wholesaleTier = getWholesaleTier(totalPiecesInCart);
-  const wholesalePct = wholesaleTier.percent;
+  const wholesalePct = !applyWholesale
+    ? 0
+    : (customWholesalePct !== null ? customWholesalePct : wholesaleTier.percent);
   const wholesaleDiscountAmount = (subtotal * wholesalePct) / 100;
+
+  const handleToggleTierCheck = (pct) => {
+    if (applyWholesale && wholesalePct === pct) {
+      setApplyWholesale(false);
+      setCustomWholesalePct(null);
+    } else {
+      setApplyWholesale(true);
+      setCustomWholesalePct(pct);
+    }
+  };
+
+  const handleToggleMasterWholesale = (checked) => {
+    setApplyWholesale(checked);
+    if (!checked) {
+      setCustomWholesalePct(null);
+    } else if (wholesaleTier.percent === 0 && customWholesalePct === null) {
+      setCustomWholesalePct(5);
+    }
+  };
 
   const manualDiscountAmount = Math.max(0, Number(discount) || 0);
   const totalDiscount = wholesaleDiscountAmount + manualDiscountAmount;
@@ -220,6 +244,8 @@ export default function NewSale({ onNavigate }) {
     setCompletedSale(saleData);
     setCart([]);
     setDiscount('');
+    setApplyWholesale(true);
+    setCustomWholesalePct(null);
     setCustomerName('');
     setCustomerPhone('');
     setCashReceived('');
@@ -373,19 +399,67 @@ export default function NewSale({ onNavigate }) {
 
               {/* MAYOREO Y DESCUENTOS EN PANTALLA COMPLETA */}
               <div className="pos-checkout-discounts-box">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                    <input
+                      type="checkbox"
+                      checked={applyWholesale && wholesalePct > 0}
+                      onChange={e => handleToggleMasterWholesale(e.target.checked)}
+                      style={{ width: 15, height: 15, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                    />
+                    <span>Aplicar Descuento en Escala de Mayoreo</span>
+                  </label>
+                  {customWholesalePct !== null && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      style={{ padding: '1px 6px', fontSize: '0.68rem', height: 20 }}
+                      onClick={() => { setCustomWholesalePct(null); setApplyWholesale(true); }}
+                    >
+                      Auto ({wholesaleTier.percent}%)
+                    </button>
+                  )}
+                </div>
+
+                <div className="wholesale-tiers-row" style={{ marginBottom: 6 }}>
+                  {[
+                    { pct: 5, label: '3-4 pzas: 5%' },
+                    { pct: 10, label: '5-7 pzas: 10%' },
+                    { pct: 15, label: '8+ pzas: 15%' },
+                  ].map(t => {
+                    const isChecked = applyWholesale && wholesalePct === t.pct;
+                    return (
+                      <label
+                        key={t.pct}
+                        className={`tier-badge ${isChecked ? 'active' : ''}`}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer', userSelect: 'none', margin: 0 }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleTierCheck(t.pct)}
+                          style={{ width: 13, height: 13, accentColor: 'var(--accent)', cursor: 'pointer', margin: 0 }}
+                        />
+                        <span>{t.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+
                 {wholesalePct > 0 ? (
                   <div className="wholesale-applied-checkout">
-                    <Sparkles size={18} color="var(--accent)" />
+                    <Sparkles size={16} color="var(--accent)" />
                     <div>
-                      <strong>¡Descuento de Mayoreo ({wholesalePct}%) aplicado!</strong>
-                      <span>Ahorro total de {formatCurrency(wholesaleDiscountAmount)} en esta venta</span>
+                      <strong>¡Descuento de Mayoreo ({wholesalePct}%) activo! (-{formatCurrency(wholesaleDiscountAmount)})</strong>
                     </div>
                   </div>
                 ) : (
                   <div className="wholesale-tip-checkout">
-                    <Tag size={16} color="var(--accent)" />
+                    <Tag size={14} color="var(--accent)" />
                     <span>
-                      💡 Agrega {wholesaleTier.nextTierPieces} {wholesaleTier.nextTierPieces === 1 ? 'artículo más' : 'artículos más'} para desbloquear <strong>5% de mayoreo</strong>.
+                      {!applyWholesale
+                        ? 'Descuento de mayoreo desactivado para esta venta.'
+                        : `Marca una casilla arriba o agrega ${wholesaleTier.nextTierPieces} art. más para 5% automático.`}
                     </span>
                   </div>
                 )}
@@ -460,11 +534,14 @@ export default function NewSale({ onNavigate }) {
                     />
                   </div>
                   <div className="form-group" style={{ flex: 1.1, marginBottom: 0 }}>
-                    <label style={{ fontSize: '0.8rem', marginBottom: 4 }}><Phone size={13} /> Teléfono (Opcional)</label>
+                    <label style={{ fontSize: '0.8rem', marginBottom: 4 }}><Phone size={13} /> Teléfono (Máx. 8 dígitos)</label>
                     <input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={8}
                       value={customerPhone}
-                      onChange={e => setCustomerPhone(e.target.value)}
-                      placeholder="Ej: 8888-8888"
+                      onChange={e => setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                      placeholder="Ej: 88888888"
                     />
                   </div>
                 </div>
@@ -701,17 +778,19 @@ export default function NewSale({ onNavigate }) {
               />
             </div>
             <div className="pos-cat-tabs">
-              {[
-                ['all', 'Todos los Artículos'],
-                ['zapatos', '👡 Zapatos & Sandalias'],
-                ['joyas', '💎 Joyas & Accesorios'],
-              ].map(([v, l]) => (
+              <button
+                className={`cat-tab ${catFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setCatFilter('all')}
+              >
+                Todos los Artículos
+              </button>
+              {categories.map(c => (
                 <button
-                  key={v}
-                  className={`cat-tab ${catFilter === v ? 'active' : ''}`}
-                  onClick={() => setCatFilter(v)}
+                  key={c.id}
+                  className={`cat-tab ${catFilter === c.id ? 'active' : ''}`}
+                  onClick={() => setCatFilter(c.id)}
                 >
-                  {l}
+                  {c.icon || (isShoeCategory(c) ? '👡' : '💎')} {c.name}
                 </button>
               ))}
             </div>
@@ -726,18 +805,19 @@ export default function NewSale({ onNavigate }) {
                   .filter(i => i.productId === p.id)
                   .reduce((acc, it) => acc + it.quantity, 0);
 
-                const isLow = Number(p.stock) <= Number(p.minStock);
+                const isOut = Number(p.stock) <= 0;
+                const catInfo = getCategoryInfo(p);
 
                 return (
                   <div
                     key={p.id}
-                    className={`pos-product-card ${totalInCartForProd > 0 ? 'in-cart' : ''}`}
+                    className={`pos-product-card ${totalInCartForProd > 0 ? 'in-cart' : ''} ${isOut ? 'out-of-stock' : ''}`}
                     onClick={() => handleProductClick(p)}
                   >
                     <div className="pos-prod-top">
                       <code>{p.code}</code>
-                      <span className={`badge badge-sm ${p.category === 'zapatos' ? 'badge-info' : 'badge-purple'}`}>
-                        {p.category === 'zapatos' ? '👡 Calzado' : '💎 Joya'}
+                      <span className={`badge badge-sm ${catInfo.isShoe ? 'badge-info' : 'badge-purple'}`}>
+                        {catInfo.icon} {catInfo.name}
                       </span>
                     </div>
 
@@ -746,8 +826,12 @@ export default function NewSale({ onNavigate }) {
 
                     <div className="pos-prod-bottom">
                       <span className="price">{formatCurrency(p.salePrice)}</span>
-                      <span className={`stock ${isLow ? 'low' : ''}`}>
-                        {isLow ? `Stock: ${p.stock}` : `Stock: ${p.stock} pzas`}
+                      <span className={`stock ${isOut ? 'out' : 'has-stock'}`}>
+                        {isOut ? (
+                          <>Agotado</>
+                        ) : (
+                          <>Stock: <strong>{p.stock}</strong> pzas</>
+                        )}
                       </span>
                     </div>
 
@@ -845,19 +929,51 @@ export default function NewSale({ onNavigate }) {
               <div style={{ padding: '0 12px 12px 12px' }}>
                 <div className="pos-wholesale-section" style={{ marginTop: 8 }}>
                   <div className="wholesale-badge-header">
-                    <span className="wholesale-title">
-                      <Tag size={13} color="var(--accent)" /> Escala de Mayoreo:
-                    </span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', margin: 0 }} className="wholesale-title">
+                        <input
+                          type="checkbox"
+                          checked={applyWholesale && wholesalePct > 0}
+                          onChange={e => handleToggleMasterWholesale(e.target.checked)}
+                          style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                        />
+                        <span>Aplicar Mayoreo:</span>
+                      </label>
+                      {customWholesalePct !== null && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          style={{ padding: '1px 6px', fontSize: '0.68rem', height: 18 }}
+                          onClick={() => { setCustomWholesalePct(null); setApplyWholesale(true); }}
+                        >
+                          Auto ({wholesaleTier.percent}%)
+                        </button>
+                      )}
+                    </div>
+
                     <div className="wholesale-tiers-row">
-                      <span className={`tier-badge ${wholesalePct === 5 ? 'active' : ''}`}>
-                        3-4: <strong>5%</strong>
-                      </span>
-                      <span className={`tier-badge ${wholesalePct === 10 ? 'active' : ''}`}>
-                        5-7: <strong>10%</strong>
-                      </span>
-                      <span className={`tier-badge ${wholesalePct === 15 ? 'active' : ''}`}>
-                        8+: <strong>15%</strong>
-                      </span>
+                      {[
+                        { pct: 5, range: '3-4' },
+                        { pct: 10, range: '5-7' },
+                        { pct: 15, range: '8+' },
+                      ].map(t => {
+                        const isChecked = applyWholesale && wholesalePct === t.pct;
+                        return (
+                          <label
+                            key={t.pct}
+                            className={`tier-badge ${isChecked ? 'active' : ''}`}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer', userSelect: 'none', margin: 0 }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleToggleTierCheck(t.pct)}
+                              style={{ width: 12, height: 12, accentColor: 'var(--accent)', cursor: 'pointer', margin: 0 }}
+                            />
+                            <span>{t.range}: <strong>{t.pct}%</strong></span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -870,7 +986,9 @@ export default function NewSale({ onNavigate }) {
                     </div>
                   ) : (
                     <div className="wholesale-upsell-tip">
-                      💡 Agrega {wholesaleTier.nextTierPieces} {wholesaleTier.nextTierPieces === 1 ? 'artículo más' : 'artículos más'} para desbloquear <strong>5% de mayoreo</strong>.
+                      {!applyWholesale
+                        ? 'Descuento de mayoreo desactivado (marca una casilla para aplicarlo).'
+                        : `💡 Marca una casilla o agrega ${wholesaleTier.nextTierPieces} art. más para 5% automático.`}
                     </div>
                   )}
                 </div>
@@ -986,9 +1104,13 @@ export default function NewSale({ onNavigate }) {
                         onClick={() => addToCart(sizePickerProduct, sz)}
                       >
                         <span className="size-tag-num">EUR #{sz}</span>
-                        <small className="size-tag-stock">
-                          {available ? `${stockCount} en stock` : 'Agotada'}
-                        </small>
+                        <span className="size-tag-stock">
+                          {available ? (
+                            <><strong>{stockCount}</strong> en stock</>
+                          ) : (
+                            'Agotada'
+                          )}
+                        </span>
                       </button>
                     );
                   })}
@@ -1012,9 +1134,13 @@ export default function NewSale({ onNavigate }) {
                         onClick={() => addToCart(sizePickerProduct, sz)}
                       >
                         <span className="size-tag-num">US #{sz}</span>
-                        <small className="size-tag-stock">
-                          {available ? `${stockCount} en stock` : 'Agotada'}
-                        </small>
+                        <span className="size-tag-stock">
+                          {available ? (
+                            <><strong>{stockCount}</strong> en stock</>
+                          ) : (
+                            'Agotada'
+                          )}
+                        </span>
                       </button>
                     );
                   })}
