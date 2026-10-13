@@ -7,7 +7,6 @@ export class AppController {
     return {
       name: 'Dassel Sandals API',
       status: 'online',
-      message: 'Backend NestJS + Prisma ORM + PostgreSQL funcionando correctamente',
       endpoints: {
         products: '/api/products',
         sales: '/api/sales',

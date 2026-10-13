@@ -223,9 +223,25 @@ export const api = {
   },
 
   async createCashMovement(movementData) {
+    const rawType = String(movementData.type || '').toLowerCase();
+    const type = rawType === 'salida' ? 'egreso' : rawType === 'entrada' ? 'ingreso' : rawType;
+    const reason = movementData.reason || movementData.description || movementData.category || 'Movimiento de caja';
+    const notes = movementData.notes || movementData.category || null;
+
+    const payload = {
+      type,
+      amount: Number(movementData.amount),
+      reason,
+      notes,
+      category: movementData.category || notes,
+      description: movementData.description || reason,
+      responsible: movementData.responsible || 'Administración',
+      date: movementData.date || new Date().toISOString(),
+    };
+
     return request('/cash-movements', {
       method: 'POST',
-      body: JSON.stringify(movementData),
+      body: JSON.stringify(payload),
     });
   },
 

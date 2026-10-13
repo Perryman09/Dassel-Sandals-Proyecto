@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Search, Plus, Edit, Trash2, ArrowUp, ArrowDown, Filter,
   Package, AlertTriangle, XCircle, Minus, ChevronLeft, ChevronRight,
-  Download, Tag, History, Layers, CheckCircle, X, Folder
+  Download, Tag, History, Layers, CheckCircle, X, Folder, Eye
 } from 'lucide-react';
 import { useApp, SHOE_SIZES, SHOE_SIZES_EUR, SHOE_SIZES_US } from '../context/AppContext';
 import { formatCurrency } from '../utils/format';
@@ -10,6 +10,7 @@ import ProductModal from './ProductModal';
 import BarcodeModal from './BarcodeModal';
 import MovementsModal from './MovementsModal';
 import CategoryModal from './CategoryModal';
+import ProductDetailModal from './ProductDetailModal';
 
 export default function Inventory() {
   const { products, deleteProduct, adjustStock, exportProductsCSV, categories } = useApp();
@@ -22,6 +23,7 @@ export default function Inventory() {
   const [sortDir, setSortDir] = useState('asc');
   const [modalOpen, setModalOpen] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
+  const [viewProductModal, setViewProductModal] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [adjustModal, setAdjustModal] = useState(null);
   const [adjustQty, setAdjustQty] = useState('');
@@ -308,6 +310,14 @@ export default function Inventory() {
                     <div className="action-btns" style={{ justifyContent: 'center' }}>
                       <button
                         className="icon-btn"
+                        title="Ver detalles, descripción y disponibilidad de tallas"
+                        onClick={() => setViewProductModal(p)}
+                        style={{ color: 'var(--accent)' }}
+                      >
+                        <Eye size={16} />
+                      </button>
+                      <button
+                        className="icon-btn"
                         title="Ver e imprimir etiqueta de código de barras"
                         onClick={() => setBarcodeProduct(p)}
                       >
@@ -471,25 +481,61 @@ export default function Inventory() {
                     <div>
                       <div className="form-group">
                         <label>Seleccionar Número / Talla a Ajustar</label>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-                          {SHOE_SIZES.map(sz => {
-                            const curStock = parseSizes(adjustModal)[sz] ?? 0;
-                            const isSelected = adjustSelectedSize === sz;
-                            return (
-                              <button
-                                key={sz}
-                                type="button"
-                                className={`cat-tab ${isSelected ? 'active' : ''}`}
-                                style={{ padding: '6px 12px', fontSize: '0.82rem' }}
-                                onClick={() => setAdjustSelectedSize(sz)}
-                              >
-                                US #{sz} ({curStock} pzas)
-                              </button>
-                            );
-                          })}
+                        
+                        {/* SECCIÓN 1: TALLAS EUROPEAS (EUR) */}
+                        <div style={{ marginBottom: 10, padding: '10px 12px', background: 'var(--bg-tertiary)', borderRadius: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                            <span className="badge badge-primary" style={{ fontSize: '0.72rem', padding: '3px 8px' }}>
+                              🇪🇺 Tallas Europeas (EUR 35 al 42)
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {SHOE_SIZES_EUR.map(sz => {
+                              const curStock = parseSizes(adjustModal)[sz] ?? 0;
+                              const isSelected = adjustSelectedSize === sz;
+                              return (
+                                <button
+                                  key={`eur-${sz}`}
+                                  type="button"
+                                  className={`cat-tab ${isSelected ? 'active' : ''}`}
+                                  style={{ padding: '6px 12px', fontSize: '0.82rem' }}
+                                  onClick={() => setAdjustSelectedSize(sz)}
+                                >
+                                  EUR #{sz} ({curStock} pzas)
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
+
+                        {/* SECCIÓN 2: TALLAS AMERICANAS (US) */}
+                        <div style={{ marginBottom: 8, padding: '10px 12px', background: 'var(--bg-tertiary)', borderRadius: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                            <span className="badge badge-accent" style={{ fontSize: '0.72rem', padding: '3px 8px' }}>
+                              🇺🇸 Tallas Americanas (US 4 al 11)
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {SHOE_SIZES_US.map(sz => {
+                              const curStock = parseSizes(adjustModal)[sz] ?? 0;
+                              const isSelected = adjustSelectedSize === sz;
+                              return (
+                                <button
+                                  key={`us-${sz}`}
+                                  type="button"
+                                  className={`cat-tab ${isSelected ? 'active' : ''}`}
+                                  style={{ padding: '6px 12px', fontSize: '0.82rem' }}
+                                  onClick={() => setAdjustSelectedSize(sz)}
+                                >
+                                  US #{sz} ({curStock} pzas)
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
                         <small style={{ color: 'var(--text-muted)' }}>
-                          Existencia actual de <strong>Talla US #{adjustSelectedSize}</strong>: {parseSizes(adjustModal)[adjustSelectedSize] ?? 0} pares
+                          Existencia actual de <strong>Talla {SHOE_SIZES_EUR.includes(adjustSelectedSize) ? 'EUR' : 'US'} #{adjustSelectedSize}</strong>: {parseSizes(adjustModal)[adjustSelectedSize] ?? 0} pares
                         </small>
                       </div>
 
@@ -538,7 +584,7 @@ export default function Inventory() {
                           fontSize: '0.85rem'
                         }}>
                           <div>
-                            Talla {Number(adjustSelectedSize) >= 30 ? 'EUR' : 'US'} #{adjustSelectedSize}: de <strong>{parseSizes(adjustModal)[adjustSelectedSize] ?? 0}</strong> pasará a{' '}
+                            Talla {SHOE_SIZES_EUR.includes(adjustSelectedSize) ? 'EUR' : 'US'} #{adjustSelectedSize}: de <strong>{parseSizes(adjustModal)[adjustSelectedSize] ?? 0}</strong> pasará a{' '}
                             <strong style={{ color: parseInt(adjustQty, 10) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                               {Math.max(0, (Number(parseSizes(adjustModal)[adjustSelectedSize]) || 0) + parseInt(adjustQty, 10))} pares
                             </strong>
@@ -552,37 +598,79 @@ export default function Inventory() {
                   ) : (
                     <div>
                       <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 10 }}>
-                        Ingresa cuántos pares sumar (+) o restar (-) en cada número (EUR o US):
+                        Ingresa cuántos pares sumar (+) o restar (-) en cada número:
                       </p>
-                      <div className="shoe-sizes-matrix-grid" style={{ marginBottom: 12 }}>
-                        {SHOE_SIZES.map(sz => {
-                          const isEur = Number(sz) >= 30;
-                          const curStock = Number(parseSizes(adjustModal)[sz]) || 0;
-                          const delta = multiAdjustSizes[sz] !== undefined ? multiAdjustSizes[sz] : '';
-                          const intDelta = parseInt(delta, 10) || 0;
-                          const finalSz = Math.max(0, curStock + intDelta);
-                          return (
-                            <div key={sz} className="shoe-size-cell" style={{ padding: 6, background: 'var(--bg-tertiary)', borderRadius: 6 }}>
-                              <span className="size-label">{isEur ? `EUR #${sz}` : `US #${sz}`}</span>
-                              <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>Act: {curStock}</small>
-                              <input
-                                type="number"
-                                placeholder="+/-"
-                                value={delta}
-                                onChange={e => {
-                                  const val = e.target.value;
-                                  setMultiAdjustSizes(prev => ({ ...prev, [sz]: val }));
-                                }}
-                                style={{ padding: '4px', fontSize: '0.85rem', textAlign: 'center' }}
-                              />
-                              {delta !== '' && intDelta !== 0 && (
-                                <small style={{ color: intDelta > 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>
-                                  → {finalSz}
-                                </small>
-                              )}
-                            </div>
-                          );
-                        })}
+
+                      {/* MATRIZ EUR */}
+                      <div style={{ marginBottom: 12 }}>
+                        <span className="badge badge-primary" style={{ fontSize: '0.72rem', marginBottom: 6, display: 'inline-block' }}>
+                          🇪🇺 Tallas Europeas (EUR 35 al 42)
+                        </span>
+                        <div className="shoe-sizes-matrix-grid">
+                          {SHOE_SIZES_EUR.map(sz => {
+                            const curStock = Number(parseSizes(adjustModal)[sz]) || 0;
+                            const delta = multiAdjustSizes[sz] !== undefined ? multiAdjustSizes[sz] : '';
+                            const intDelta = parseInt(delta, 10) || 0;
+                            const finalSz = Math.max(0, curStock + intDelta);
+                            return (
+                              <div key={`mat-eur-${sz}`} className="shoe-size-cell" style={{ padding: 6, background: 'var(--bg-tertiary)', borderRadius: 6 }}>
+                                <span className="size-label">EUR #{sz}</span>
+                                <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>Act: {curStock}</small>
+                                <input
+                                  type="number"
+                                  placeholder="+/-"
+                                  value={delta}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setMultiAdjustSizes(prev => ({ ...prev, [sz]: val }));
+                                  }}
+                                  style={{ padding: '4px', fontSize: '0.85rem', textAlign: 'center' }}
+                                />
+                                {delta !== '' && intDelta !== 0 && (
+                                  <small style={{ color: intDelta > 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>
+                                    → {finalSz}
+                                  </small>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* MATRIZ US */}
+                      <div style={{ marginBottom: 12 }}>
+                        <span className="badge badge-accent" style={{ fontSize: '0.72rem', marginBottom: 6, display: 'inline-block' }}>
+                          🇺🇸 Tallas Americanas (US 4 al 11)
+                        </span>
+                        <div className="shoe-sizes-matrix-grid">
+                          {SHOE_SIZES_US.map(sz => {
+                            const curStock = Number(parseSizes(adjustModal)[sz]) || 0;
+                            const delta = multiAdjustSizes[sz] !== undefined ? multiAdjustSizes[sz] : '';
+                            const intDelta = parseInt(delta, 10) || 0;
+                            const finalSz = Math.max(0, curStock + intDelta);
+                            return (
+                              <div key={`mat-us-${sz}`} className="shoe-size-cell" style={{ padding: 6, background: 'var(--bg-tertiary)', borderRadius: 6 }}>
+                                <span className="size-label">US #{sz}</span>
+                                <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>Act: {curStock}</small>
+                                <input
+                                  type="number"
+                                  placeholder="+/-"
+                                  value={delta}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setMultiAdjustSizes(prev => ({ ...prev, [sz]: val }));
+                                  }}
+                                  style={{ padding: '4px', fontSize: '0.85rem', textAlign: 'center' }}
+                                />
+                                {delta !== '' && intDelta !== 0 && (
+                                  <small style={{ color: intDelta > 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>
+                                    → {finalSz}
+                                  </small>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -674,6 +762,17 @@ export default function Inventory() {
       {/* MODAL DE GESTIÓN DE CATEGORÍAS */}
       {showCategoryModal && (
         <CategoryModal onClose={() => setShowCategoryModal(false)} />
+      )}
+
+      {/* MODAL DE FICHA TÉCNICA Y DETALLES DEL PRODUCTO (OJITO) */}
+      {viewProductModal && (
+        <ProductDetailModal
+          product={viewProductModal}
+          onClose={() => setViewProductModal(null)}
+          onEdit={(p) => { setEditProduct(p); setModalOpen(true); }}
+          onAdjust={(p) => openAdjustModal(p)}
+          onBarcode={(p) => setBarcodeProduct(p)}
+        />
       )}
     </div>
   );

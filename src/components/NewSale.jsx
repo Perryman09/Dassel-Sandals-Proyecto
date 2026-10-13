@@ -3,9 +3,9 @@ import {
   Search, Plus, Minus, X, ShoppingCart, Trash2,
   CreditCard, Banknote, ArrowRightLeft, CheckCircle, User,
   Phone, Printer, Sparkles, Tag, Layers, AlertTriangle,
-  Calculator, RotateCcw, FileText
+  Calculator, RotateCcw, FileText, ArrowRight, ArrowLeft
 } from 'lucide-react';
-import { useApp, getWholesaleTier } from '../context/AppContext';
+import { useApp, getWholesaleTier, SHOE_SIZES_EUR, SHOE_SIZES_US } from '../context/AppContext';
 import { formatCurrency } from '../utils/format';
 import ReceiptModal from './ReceiptModal';
 
@@ -24,8 +24,18 @@ export default function NewSale({ onNavigate }) {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showNumpad, setShowNumpad] = useState(true);
 
+  // Vista de pantalla completa para procesar venta y cobro en la sección de ventas
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+
   // Modal para seleccionar talla de zapato antes de meter al carrito
   const [sizePickerProduct, setSizePickerProduct] = useState(null);
+
+  // Helper para mostrar prefijo correcto EUR vs US
+  const formatSizeLabel = (sz) => {
+    if (!sz) return '';
+    const isEur = SHOE_SIZES_EUR.includes(String(sz)) || Number(sz) >= 30;
+    return isEur ? `EUR #${sz}` : `US #${sz}`;
+  };
 
   const availableProducts = products.filter(p => {
     if (p.status !== 'active' || Number(p.stock) <= 0) return false;
@@ -107,7 +117,7 @@ export default function NewSale({ onNavigate }) {
   // Cálculo estrictamente numérico del subtotal
   const subtotal = cart.reduce((acc, i) => acc + (Number(i.subtotal) || 0), 0);
 
-  // Cálculo de Descuento de Mayoreo oficial (Calzado & Joyas):
+  // Cálculo de Descuento de Mayoreo oficial:
   // De 3 a 4 piezas -> 5%
   // De 5 a 7 piezas -> 10%
   // De 8 a más piezas -> 15%
@@ -149,19 +159,14 @@ export default function NewSale({ onNavigate }) {
       setCashReceived(prev => {
         const s = String(prev || '');
         if (s.includes('.')) return s;
-        return s === '' ? '0.' : s + '.';
+        return s ? `${s}.` : '0.';
       });
       return;
     }
-    // Agregar dígito numérico
     setCashReceived(prev => {
       const s = String(prev || '');
-      if (s === '0' && val !== '.') return String(val);
-      if (s.includes('.')) {
-        const [_, dec] = s.split('.');
-        if (dec && dec.length >= 2) return s;
-      }
-      return s + String(val);
+      if (s === '0') return val;
+      return `${s}${val}`;
     });
   };
 
@@ -211,6 +216,7 @@ export default function NewSale({ onNavigate }) {
     };
 
     addSale(saleData);
+    setIsCheckingOut(false);
     setCompletedSale(saleData);
     setCart([]);
     setDiscount('');
@@ -258,9 +264,424 @@ export default function NewSale({ onNavigate }) {
     );
   }
 
+  /* ========================================================================= */
+  /* VISTA EN PANTALLA COMPLETA DE DETALLES DE LA VENTA & COBRO (SECCIÓN VENTA)*/
+  /* ========================================================================= */
+  if (isCheckingOut) {
+    return (
+      <div className="page pos-page pos-checkout-page">
+        {/* Barra superior de navegación y título */}
+        <div className="pos-checkout-topbar">
+          <button
+            type="button"
+            className="btn btn-secondary btn-back-pos"
+            onClick={() => setIsCheckingOut(false)}
+          >
+            <ArrowLeft size={18} /> Volver a Seleccionar Productos
+          </button>
+          <div className="pos-checkout-title-wrap">
+            <h2>Detalles de la Venta &amp; Cobro</h2>
+            <p>Revisa los artículos seleccionados y completa la transacción de caja</p>
+          </div>
+          <div className="pos-checkout-pill-badge">
+            <ShoppingCart size={16} /> {totalPiecesInCart} {totalPiecesInCart === 1 ? 'artículo' : 'artículos'}
+          </div>
+        </div>
+
+        {/* Layout a dos columnas en pantalla completa */}
+        <div className="pos-checkout-layout">
+          {/* COLUMNA 1: RESUMEN DETALLADO DE PRODUCTOS Y TOTALES */}
+          <div className="pos-checkout-items-col">
+            <div className="pos-checkout-panel">
+              <div className="pos-checkout-panel-header">
+                <ShoppingCart size={18} color="var(--accent)" />
+                <h3>Productos Seleccionados ({totalPiecesInCart} pzas)</h3>
+              </div>
+
+              <div className="pos-checkout-table-wrapper">
+                <table className="pos-checkout-table">
+                  <thead>
+                    <tr>
+                      <th>Artículo</th>
+                      <th>Talla</th>
+                      <th>Precio</th>
+                      <th style={{ textAlign: 'center' }}>Cant.</th>
+                      <th style={{ textAlign: 'right' }}>Subtotal</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cart.map(it => (
+                      <tr key={it.cartKey}>
+                        <td>
+                          <div className="table-item-name">{it.productName}</div>
+                          <div className="table-item-code">{it.productCode}</div>
+                        </td>
+                        <td>
+                          {it.selectedSize ? (
+                            <span className={`badge badge-sm ${SHOE_SIZES_EUR.includes(String(it.selectedSize)) || Number(it.selectedSize) >= 30 ? 'badge-primary' : 'badge-accent'}`}>
+                              {formatSizeLabel(it.selectedSize)}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>—</span>
+                          )}
+                        </td>
+                        <td>{formatCurrency(it.price)}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div className="pos-checkout-qty-group">
+                            <button
+                              type="button"
+                              className="qty-btn-sm"
+                              onClick={() => updateQty(it.cartKey, -1)}
+                            >
+                              <Minus size={12} />
+                            </button>
+                            <span className="qty-val-sm">{it.quantity}</span>
+                            <button
+                              type="button"
+                              className="qty-btn-sm"
+                              onClick={() => updateQty(it.cartKey, 1)}
+                              disabled={it.quantity >= it.maxStock}
+                            >
+                              <Plus size={12} />
+                            </button>
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>
+                          {formatCurrency(it.subtotal)}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className="icon-btn danger small"
+                            onClick={() => {
+                              removeFromCart(it.cartKey);
+                              if (cart.length <= 1) {
+                                setIsCheckingOut(false);
+                              }
+                            }}
+                            title="Quitar de la venta"
+                          >
+                            <X size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* MAYOREO Y DESCUENTOS EN PANTALLA COMPLETA */}
+              <div className="pos-checkout-discounts-box">
+                {wholesalePct > 0 ? (
+                  <div className="wholesale-applied-checkout">
+                    <Sparkles size={18} color="var(--accent)" />
+                    <div>
+                      <strong>¡Descuento de Mayoreo ({wholesalePct}%) aplicado!</strong>
+                      <span>Ahorro total de {formatCurrency(wholesaleDiscountAmount)} en esta venta</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="wholesale-tip-checkout">
+                    <Tag size={16} color="var(--accent)" />
+                    <span>
+                      💡 Agrega {wholesaleTier.nextTierPieces} {wholesaleTier.nextTierPieces === 1 ? 'artículo más' : 'artículos más'} para desbloquear <strong>5% de mayoreo</strong>.
+                    </span>
+                  </div>
+                )}
+
+                <div className="checkout-manual-discount-row">
+                  <label>Descuento Especial / Manual (C$):</label>
+                  <input
+                    type="number"
+                    className="discount-input"
+                    value={discount}
+                    onChange={e => setDiscount(e.target.value)}
+                    placeholder="0.00"
+                    style={{ width: 110, textAlign: 'right' }}
+                  />
+                </div>
+              </div>
+
+              {/* TARJETA DE TOTALES FINANCIEROS */}
+              <div className="pos-checkout-totals-card">
+                <div className="checkout-tot-row">
+                  <span>Subtotal Artículos:</span>
+                  <strong>{formatCurrency(subtotal)}</strong>
+                </div>
+                {wholesaleDiscountAmount > 0 && (
+                  <div className="checkout-tot-row discount">
+                    <span>Descuento Mayoreo ({wholesalePct}%):</span>
+                    <strong>-{formatCurrency(wholesaleDiscountAmount)}</strong>
+                  </div>
+                )}
+                {manualDiscountAmount > 0 && (
+                  <div className="checkout-tot-row discount">
+                    <span>Descuento Manual:</span>
+                    <strong>-{formatCurrency(manualDiscountAmount)}</strong>
+                  </div>
+                )}
+                <div className="checkout-tot-divider" />
+                <div className="checkout-tot-row grand-total">
+                  <span>TOTAL A COBRAR:</span>
+                  <span className="checkout-grand-total-val">{formatCurrency(total)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* COLUMNA 2: FORMULARIO DE CLIENTE Y COBRO */}
+          <div className="pos-checkout-payment-col">
+            <div className="pos-checkout-panel">
+              <div className="pos-checkout-panel-header">
+                <CreditCard size={18} color="var(--accent)" />
+                <h3>Datos del Cliente &amp; Métodos de Pago</h3>
+              </div>
+
+              {/* Cliente y Teléfono */}
+              <div className="checkout-customer-section">
+                <div className="form-row" style={{ gap: 10, marginBottom: 0 }}>
+                  <div className="form-group" style={{ flex: 1.6, marginBottom: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <label style={{ fontSize: '0.8rem', marginBottom: 0 }}><User size={13} /> Nombre del Cliente</label>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        style={{ padding: '0 6px', fontSize: '0.7rem', height: 18 }}
+                        onClick={() => setCustomerName('Público General')}
+                      >
+                        Público General
+                      </button>
+                    </div>
+                    <input
+                      value={customerName}
+                      onChange={e => setCustomerName(e.target.value)}
+                      placeholder="Público General o Nombre..."
+                    />
+                  </div>
+                  <div className="form-group" style={{ flex: 1.1, marginBottom: 0 }}>
+                    <label style={{ fontSize: '0.8rem', marginBottom: 4 }}><Phone size={13} /> Teléfono (Opcional)</label>
+                    <input
+                      value={customerPhone}
+                      onChange={e => setCustomerPhone(e.target.value)}
+                      placeholder="Ej: 8888-8888"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Selector de Método de Pago */}
+              <div className="checkout-payment-methods-section">
+                <label className="section-label" style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: 6, display: 'block' }}>
+                  Seleccionar Método de Pago:
+                </label>
+                <div className="payment-method-buttons-grid">
+                  {[
+                    { v: 'Efectivo', Icon: Banknote, l: 'Efectivo (C$)' },
+                    { v: 'Tarjeta', Icon: CreditCard, l: 'Tarjeta POS' },
+                    { v: 'Transferencia', Icon: ArrowRightLeft, l: 'Transferencia' },
+                  ].map(({ v, Icon, l }) => (
+                    <button
+                      key={v}
+                      type="button"
+                      className={`pay-method-btn ${paymentMethod === v ? 'active' : ''}`}
+                      onClick={() => setPaymentMethod(v)}
+                    >
+                      <Icon size={18} />
+                      <span>{l}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Contenido según método de pago */}
+              {paymentMethod === 'Efectivo' ? (
+                <div className="checkout-cash-module">
+                  {/* Monto Recibido y Visualizador de Vuelto */}
+                  <div className="form-row" style={{ gap: 10, alignItems: 'flex-start' }}>
+                    <div className="form-group" style={{ flex: 1.2, marginBottom: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <label style={{ marginBottom: 0, fontSize: '0.82rem', fontWeight: 700 }}>
+                          💵 Efectivo Recibido (C$) *
+                        </label>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          style={{ padding: '1px 6px', fontSize: '0.7rem', height: 20 }}
+                          onClick={() => setShowNumpad(v => !v)}
+                        >
+                          <Calculator size={11} /> {showNumpad ? 'Ocultar Numpad' : 'Ver Numpad'}
+                        </button>
+                      </div>
+                      <div className="cash-input-wrap large">
+                        <span className="cash-currency-prefix">C$</span>
+                        <input
+                          type="number"
+                          className={`cash-input large ${isCashShort ? 'short' : isCashValid && cashReceived ? 'valid' : ''}`}
+                          value={cashReceived}
+                          onChange={e => setCashReceived(e.target.value)}
+                          placeholder="0.00"
+                          step="any"
+                          autoFocus
+                        />
+                        {cashReceived && (
+                          <button
+                            type="button"
+                            className="cash-clear-btn"
+                            onClick={() => handleNumpadPress('CLEAR')}
+                            title="Limpiar monto"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                      <label style={{ marginBottom: 4, fontSize: '0.82rem', fontWeight: 700 }}>
+                        {isCashShort ? '⚠️ Faltante de Pago' : '✅ Cambio / Vuelto'}
+                      </label>
+                      <div
+                        className={`change-display-badge large ${
+                          isCashShort ? 'short' : changeDue > 0 ? 'positive' : isCashEmpty ? 'empty' : 'exact'
+                        }`}
+                      >
+                        {isCashShort ? (
+                          <span>- {formatCurrency(cashShortage)}</span>
+                        ) : changeDue > 0 ? (
+                          <span>+ {formatCurrency(changeDue)}</span>
+                        ) : isCashEmpty ? (
+                          <span style={{ fontSize: '0.78rem', opacity: 0.7 }}>Esperando monto</span>
+                        ) : (
+                          <span>Pago Exacto</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Billetes rápidos de Nicaragua */}
+                  <div className="pos-quick-bills" style={{ marginTop: 6 }}>
+                    <button
+                      type="button"
+                      className={`quick-bill-btn exact ${receivedNum === total && !isCashEmpty ? 'active' : ''}`}
+                      onClick={() => handleNumpadPress('EXACT')}
+                    >
+                      💵 Exacto ({formatCurrency(total)})
+                    </button>
+                    {[100, 200, 500, 1000].map(bill => (
+                      <button
+                        key={bill}
+                        type="button"
+                        className={`quick-bill-btn ${receivedNum === bill ? 'active' : ''}`}
+                        onClick={() => handleQuickBill(bill)}
+                      >
+                        C${bill}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Teclado numérico táctil */}
+                  {showNumpad && (
+                    <div className="pos-touch-numpad" style={{ marginTop: 10 }}>
+                      <div className="numpad-row">
+                        {['7', '8', '9'].map(k => (
+                          <button key={k} type="button" className="numpad-btn" onClick={() => handleNumpadPress(k)}>
+                            {k}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="numpad-row">
+                        {['4', '5', '6'].map(k => (
+                          <button key={k} type="button" className="numpad-btn" onClick={() => handleNumpadPress(k)}>
+                            {k}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="numpad-row">
+                        {['1', '2', '3'].map(k => (
+                          <button key={k} type="button" className="numpad-btn" onClick={() => handleNumpadPress(k)}>
+                            {k}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="numpad-row">
+                        <button type="button" className="numpad-btn clear" onClick={() => handleNumpadPress('CLEAR')}>
+                          C
+                        </button>
+                        <button type="button" className="numpad-btn" onClick={() => handleNumpadPress('0')}>
+                          0
+                        </button>
+                        <button type="button" className="numpad-btn backspace" onClick={() => handleNumpadPress('BACKSPACE')}>
+                          ⌫
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Tarjeta o Transferencia */
+                <div style={{ marginTop: 8, marginBottom: 12 }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}>
+                      <FileText size={15} color="var(--accent)" />
+                      {paymentMethod === 'Tarjeta' ? 'No. de Voucher / Lote / Terminal POS (Opcional)' : 'Referencia de Transferencia (BAC / LAFISE)'}
+                    </label>
+                    <input
+                      value={paymentReference}
+                      onChange={e => setPaymentReference(e.target.value)}
+                      placeholder={paymentMethod === 'Tarjeta' ? 'Ej: Voucher #4521' : 'Ej: Ref. BAC #987654'}
+                      autoFocus
+                      style={{ fontSize: '1rem', padding: '12px 14px' }}
+                    />
+                    <small style={{ color: 'var(--text-muted)', fontSize: '0.74rem', marginTop: 4, display: 'block' }}>
+                      Este número quedará impreso en el ticket para conciliación de caja.
+                    </small>
+                  </div>
+                </div>
+              )}
+
+              {/* ACCIONES FINALES DE COBRO */}
+              <div className="pos-checkout-actions-row">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-lg"
+                  onClick={() => setIsCheckingOut(false)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 18px' }}
+                >
+                  <ArrowLeft size={18} /> Volver a Productos
+                </button>
+
+                <button
+                  type="button"
+                  className={`btn btn-primary btn-lg btn-confirm-checkout ${isCashShort ? 'btn-danger' : ''}`}
+                  onClick={handleCompleteSale}
+                  disabled={!isCashValid}
+                >
+                  {isCashShort ? (
+                    <>
+                      <AlertTriangle size={18} /> Faltan {formatCurrency(cashShortage)}
+                    </>
+                  ) : isCashEmpty && paymentMethod === 'Efectivo' ? (
+                    <>
+                      <Banknote size={18} /> Ingresa Efectivo
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={18} /> Confirmar Venta &amp; Emitir Ticket ({formatCurrency(total)})
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="page">
-      <div className="page-header">
+    <div className="page pos-page">
+      <div className="page-header pos-header">
         <div>
           <h1>Nueva Venta (POS)</h1>
           <p>Terminal de Cobro Rápido — Moneda oficial: Córdobas (C$)</p>
@@ -320,24 +741,21 @@ export default function NewSale({ onNavigate }) {
                       </span>
                     </div>
 
-                    <strong>{p.name}</strong>
+                    <h4>{p.name}</h4>
+                    <p className="pos-prod-sub">{p.subcategory} {p.size ? `· ${p.size}` : ''}</p>
 
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      {p.subcategory} {p.size ? `· ${p.size}` : ''}
+                    <div className="pos-prod-bottom">
+                      <span className="price">{formatCurrency(p.salePrice)}</span>
+                      <span className={`stock ${isLow ? 'low' : ''}`}>
+                        {isLow ? `Stock: ${p.stock}` : `Stock: ${p.stock} pzas`}
+                      </span>
                     </div>
 
-                    <span className="pos-prod-price">{formatCurrency(p.salePrice)}</span>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <small style={{ color: isLow ? 'var(--warning)' : 'var(--text-muted)' }}>
-                        Stock: {p.stock} pzas
-                      </small>
-                      {totalInCartForProd > 0 && (
-                        <span className="badge badge-sm badge-success">
-                          {totalInCartForProd} en carrito
-                        </span>
-                      )}
-                    </div>
+                    {totalInCartForProd > 0 && (
+                      <div className="pos-prod-in-cart-badge">
+                        {totalInCartForProd} en carrito
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -345,12 +763,12 @@ export default function NewSale({ onNavigate }) {
           </div>
         </div>
 
-        {/* Panel Carrito y Cobro a la Derecha */}
+        {/* Panel Carrito a la Derecha (SÓLO PRODUCTOS SELECCIONADOS Y BOTÓN PROCESAR VENTA) */}
         <div className="pos-cart">
-          {/* 1. Encabezado Fijo del Carrito */}
+          {/* 1. Encabezado del Carrito */}
           <div className="cart-header">
             <h3>
-              <ShoppingCart size={20} /> Carrito ({cart.reduce((acc, i) => acc + i.quantity, 0)} piezas)
+              <ShoppingCart size={20} /> Carrito ({totalPiecesInCart} piezas)
             </h3>
             {cart.length > 0 && (
               <button
@@ -363,14 +781,16 @@ export default function NewSale({ onNavigate }) {
             )}
           </div>
 
-          {/* 2. Zona Central con Scroll (Artículos + Datos de Pago) */}
+          {/* 2. Lista de Productos Seleccionados */}
           <div className="cart-scroll-area">
-            {/* Lista de Artículos */}
             <div className="cart-items-wrapper">
               {cart.length === 0 ? (
                 <div className="cart-empty">
-                  <ShoppingCart size={40} color="var(--text-muted)" />
-                  <p>Haz clic en los productos para agregarlos a la venta</p>
+                  <ShoppingCart size={46} color="var(--text-muted)" />
+                  <p style={{ marginTop: 12, fontSize: '0.95rem', fontWeight: 600 }}>El carrito está vacío</p>
+                  <small style={{ color: 'var(--text-muted)' }}>
+                    Haz clic en los productos del catálogo para agregarlos a la venta.
+                  </small>
                 </div>
               ) : (
                 <div className="cart-items-list">
@@ -381,7 +801,7 @@ export default function NewSale({ onNavigate }) {
                           <strong>{item.productName}</strong>
                           {item.selectedSize && (
                             <span className="badge badge-sm badge-info" style={{ marginLeft: 6 }}>
-                              Talla US #{item.selectedSize}
+                              Talla {formatSizeLabel(item.selectedSize)}
                             </span>
                           )}
                         </div>
@@ -420,259 +840,59 @@ export default function NewSale({ onNavigate }) {
               )}
             </div>
 
-            {/* Formulario de Cliente, Método de Pago y Descuento */}
-            <div className="cart-form-section">
-              <div className="form-row" style={{ gap: 8, marginBottom: 8 }}>
-                <div className="form-group" style={{ flex: 1.8, marginBottom: 0 }}>
-                  <label><User size={13} /> Cliente</label>
-                  <input
-                    value={customerName}
-                    onChange={e => setCustomerName(e.target.value)}
-                    placeholder="Público General"
-                  />
-                </div>
-                <div className="form-group" style={{ flex: 1.2, marginBottom: 0 }}>
-                  <label><Phone size={13} /> Teléfono</label>
-                  <input
-                    value={customerPhone}
-                    onChange={e => setCustomerPhone(e.target.value)}
-                    placeholder="Opcional"
-                  />
-                </div>
-              </div>
-
-              <div className="form-group" style={{ marginTop: 6, marginBottom: 8 }}>
-                <label>Método de Pago</label>
-                <div className="payment-methods">
-                  {[
-                    { v: 'Efectivo', Icon: Banknote, l: 'Efectivo' },
-                    { v: 'Tarjeta', Icon: CreditCard, l: 'Tarjeta' },
-                    { v: 'Transferencia', Icon: ArrowRightLeft, l: 'Transferencia' },
-                  ].map(({ v, Icon, l }) => (
-                    <button
-                      key={v}
-                      type="button"
-                      className={`pay-btn ${paymentMethod === v ? 'active' : ''}`}
-                      onClick={() => setPaymentMethod(v)}
-                    >
-                      <Icon size={14} /> {l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {paymentMethod === 'Efectivo' ? (
-                <div className="pos-cash-module">
-                  {/* Fila con Input y Visualizador de Cambio */}
-                  <div className="form-row" style={{ gap: 8, alignItems: 'flex-start' }}>
-                    <div className="form-group" style={{ flex: 1.2, marginBottom: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <label style={{ marginBottom: 0 }}>Efectivo Recibido (C$) *</label>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          style={{ padding: '1px 6px', fontSize: '0.68rem', height: 20 }}
-                          onClick={() => setShowNumpad(v => !v)}
-                          title="Mostrar/Ocultar teclado táctil"
-                        >
-                          <Calculator size={11} /> {showNumpad ? 'Ocultar Numpad' : 'Ver Numpad'}
-                        </button>
-                      </div>
-                      <div className="cash-input-wrap">
-                        <input
-                          type="number"
-                          className={`cash-input ${isCashShort ? 'short' : isCashValid && cashReceived ? 'valid' : ''}`}
-                          value={cashReceived}
-                          onChange={e => setCashReceived(e.target.value)}
-                          placeholder="0.00"
-                          step="any"
-                        />
-                        {cashReceived && (
-                          <button
-                            type="button"
-                            className="cash-clear-btn"
-                            onClick={() => handleNumpadPress('CLEAR')}
-                            title="Limpiar monto"
-                          >
-                            <X size={13} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                      <label style={{ marginBottom: 4 }}>
-                        {isCashShort ? 'Faltante de Pago' : 'Cambio / Vuelto'}
-                      </label>
-                      <div
-                        className={`change-display-badge ${
-                          isCashShort ? 'short' : changeDue > 0 ? 'positive' : isCashEmpty ? 'empty' : 'exact'
-                        }`}
-                      >
-                        {isCashShort ? (
-                          <span>- {formatCurrency(cashShortage)}</span>
-                        ) : changeDue > 0 ? (
-                          <span>+ {formatCurrency(changeDue)}</span>
-                        ) : isCashEmpty ? (
-                          <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>Esperando monto</span>
-                        ) : (
-                          <span>Pago Exacto</span>
-                        )}
-                      </div>
+            {/* SECCIÓN DE MAYOREO DENTRO DEL CARRITO */}
+            {cart.length > 0 && (
+              <div style={{ padding: '0 12px 12px 12px' }}>
+                <div className="pos-wholesale-section" style={{ marginTop: 8 }}>
+                  <div className="wholesale-badge-header">
+                    <span className="wholesale-title">
+                      <Tag size={13} color="var(--accent)" /> Escala de Mayoreo:
+                    </span>
+                    <div className="wholesale-tiers-row">
+                      <span className={`tier-badge ${wholesalePct === 5 ? 'active' : ''}`}>
+                        3-4: <strong>5%</strong>
+                      </span>
+                      <span className={`tier-badge ${wholesalePct === 10 ? 'active' : ''}`}>
+                        5-7: <strong>10%</strong>
+                      </span>
+                      <span className={`tier-badge ${wholesalePct === 15 ? 'active' : ''}`}>
+                        8+: <strong>15%</strong>
+                      </span>
                     </div>
                   </div>
 
-                  {/* ADVERTENCIA DE MONTO INSUFICIENTE */}
-                  {isCashShort && (
-                    <div className="cash-alert-banner shortage">
-                      <AlertTriangle size={15} style={{ flexShrink: 0 }} />
+                  {wholesalePct > 0 ? (
+                    <div className="wholesale-applied-alert">
+                      <Sparkles size={14} color="var(--accent)" />
                       <span>
-                        ⚠️ Monto insuficiente: Faltan <strong>{formatCurrency(cashShortage)}</strong> para completar el pago.
+                        🎉 <strong>¡Mayoreo {wholesalePct}% aplicado!</strong> Ahorro de -{formatCurrency(wholesaleDiscountAmount)}
                       </span>
                     </div>
-                  )}
-
-                  {/* MENSAJE INFORMATIVO SI ESTÁ VACÍO */}
-                  {isCashEmpty && cart.length > 0 && (
-                    <div className="cash-alert-banner neutral">
-                      <Banknote size={15} style={{ flexShrink: 0 }} />
-                      <span>
-                        💵 Digita el monto en el teclado o pulsa <strong>"Exacto"</strong> para cobrar.
-                      </span>
-                    </div>
-                  )}
-
-                  {/* BOTONES RÁPIDOS DE BILLETES DE NICARAGUA */}
-                  <div className="pos-quick-bills">
-                    <button
-                      type="button"
-                      className={`quick-bill-btn exact ${receivedNum === total && !isCashEmpty ? 'active' : ''}`}
-                      onClick={() => handleNumpadPress('EXACT')}
-                    >
-                      💵 Exacto ({formatCurrency(total)})
-                    </button>
-                    {[100, 200, 500, 1000].map(bill => (
-                      <button
-                        key={bill}
-                        type="button"
-                        className={`quick-bill-btn ${receivedNum === bill ? 'active' : ''}`}
-                        onClick={() => handleQuickBill(bill)}
-                      >
-                        C${bill}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* TECLADO NUMÉRICO TÁCTIL (NUMPAD POS) */}
-                  {showNumpad && (
-                    <div className="pos-touch-numpad">
-                      <div className="numpad-row">
-                        {['7', '8', '9'].map(k => (
-                          <button key={k} type="button" className="numpad-btn" onClick={() => handleNumpadPress(k)}>
-                            {k}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="numpad-row">
-                        {['4', '5', '6'].map(k => (
-                          <button key={k} type="button" className="numpad-btn" onClick={() => handleNumpadPress(k)}>
-                            {k}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="numpad-row">
-                        {['1', '2', '3'].map(k => (
-                          <button key={k} type="button" className="numpad-btn" onClick={() => handleNumpadPress(k)}>
-                            {k}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="numpad-row">
-                        <button type="button" className="numpad-btn clear" onClick={() => handleNumpadPress('CLEAR')}>
-                          C
-                        </button>
-                        <button type="button" className="numpad-btn" onClick={() => handleNumpadPress('0')}>
-                          0
-                        </button>
-                        <button type="button" className="numpad-btn backspace" onClick={() => handleNumpadPress('BACKSPACE')}>
-                          ⌫
-                        </button>
-                      </div>
+                  ) : (
+                    <div className="wholesale-upsell-tip">
+                      💡 Agrega {wholesaleTier.nextTierPieces} {wholesaleTier.nextTierPieces === 1 ? 'artículo más' : 'artículos más'} para desbloquear <strong>5% de mayoreo</strong>.
                     </div>
                   )}
                 </div>
-              ) : (
-                /* CAMPOS PARA TARJETA O TRANSFERENCIA */
-                <div style={{ marginTop: 6, marginBottom: 8 }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <FileText size={13} />
-                      {paymentMethod === 'Tarjeta' ? 'No. de Voucher / Lote (Opcional)' : 'Referencia de Transferencia (BAC / LAFISE)'}
-                    </label>
+
+                <div className="form-group" style={{ marginTop: 8, marginBottom: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ marginBottom: 0, fontSize: '0.8rem' }}>Descuento Manual Extra (C$)</label>
                     <input
-                      value={paymentReference}
-                      onChange={e => setPaymentReference(e.target.value)}
-                      placeholder={paymentMethod === 'Tarjeta' ? 'Ej: Voucher #4521' : 'Ej: Ref. BAC #987654'}
+                      type="number"
+                      className="discount-input"
+                      value={discount}
+                      onChange={e => setDiscount(e.target.value)}
+                      placeholder="0.00"
+                      style={{ width: 90, textAlign: 'right' }}
                     />
                   </div>
                 </div>
-              )}
-
-              {/* SECCIÓN DE DESCUENTOS AL POR MAYOR */}
-              <div className="pos-wholesale-section">
-                <div className="wholesale-badge-header">
-                  <span className="wholesale-title">
-                    <Tag size={13} color="var(--accent)" /> Escala de Mayoreo (Calzado &amp; Joyas):
-                  </span>
-                  <div className="wholesale-tiers-row">
-                    <span className={`tier-badge ${wholesalePct === 5 ? 'active' : ''}`}>
-                      3-4 pzas: <strong>5%</strong>
-                    </span>
-                    <span className={`tier-badge ${wholesalePct === 10 ? 'active' : ''}`}>
-                      5-7 pzas: <strong>10%</strong>
-                    </span>
-                    <span className={`tier-badge ${wholesalePct === 15 ? 'active' : ''}`}>
-                      8+ pzas: <strong>15%</strong>
-                    </span>
-                  </div>
-                </div>
-
-                {wholesalePct > 0 ? (
-                  <div className="wholesale-applied-alert">
-                    <Sparkles size={14} color="var(--accent)" />
-                    <span>
-                      🎉 <strong>¡Mayoreo {wholesalePct}% aplicado!</strong> Ahorro de -{formatCurrency(wholesaleDiscountAmount)}
-                    </span>
-                  </div>
-                ) : cart.length > 0 ? (
-                  <div className="wholesale-upsell-tip">
-                    💡 Agrega {wholesaleTier.nextTierPieces} {wholesaleTier.nextTierPieces === 1 ? 'artículo más' : 'artículos más'} para desbloquear <strong>5% de mayoreo</strong>.
-                  </div>
-                ) : null}
-
-                {wholesalePct > 0 && wholesaleTier.nextTierPieces > 0 && (
-                  <div className="wholesale-upsell-tip">
-                    ⭐ Agrega {wholesaleTier.nextTierPieces} {wholesaleTier.nextTierPieces === 1 ? 'más' : 'más'} para subir a <strong>{wholesaleTier.nextPercent}% de descuento</strong>.
-                  </div>
-                )}
               </div>
-
-              <div className="form-group" style={{ marginTop: 6, marginBottom: 4 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ marginBottom: 0 }}>Descuento Adicional Manual (C$)</label>
-                  <input
-                    type="number"
-                    className="discount-input"
-                    value={discount}
-                    onChange={e => setDiscount(e.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* 3. BARRA INFERIOR FIJA Y SIEMPRE VISIBLE PARA COBRAR */}
+          {/* 3. BARRA INFERIOR CON TOTAL Y BOTÓN "PROCESAR VENTA" */}
           <div className="cart-sticky-bottom">
             <div className="cart-summary-line">
               <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -696,38 +916,34 @@ export default function NewSale({ onNavigate }) {
               </div>
             </div>
 
+            {/* BOTÓN PROCESAR VENTA (ABRE EL FORMULARIO EN PANTALLA COMPLETA) */}
             <button
-              className={`btn btn-primary btn-lg btn-full btn-cobrar ${
-                isCashShort ? 'btn-danger' : isCashEmpty && paymentMethod === 'Efectivo' ? 'btn-muted-cobrar' : ''
-              }`}
-              onClick={handleCompleteSale}
-              disabled={cart.length === 0 || !isCashValid}
-              title={
-                cart.length === 0
-                  ? 'Agrega productos para cobrar'
-                  : isCashShort
-                  ? `Faltan ${formatCurrency(cashShortage)}`
-                  : isCashEmpty
-                  ? 'Ingresa el efectivo recibido'
-                  : ''
-              }
+              className="btn btn-primary btn-lg btn-full btn-procesar-venta"
+              onClick={() => {
+                if (cart.length > 0) {
+                  setIsCheckingOut(true);
+                }
+              }}
+              disabled={cart.length === 0}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                fontSize: '1.08rem',
+                fontWeight: 700,
+                padding: '14px',
+                borderRadius: 'var(--radius-sm)',
+              }}
             >
               {cart.length === 0 ? (
                 <>
-                  <ShoppingCart size={20} /> Agrega artículos para cobrar
-                </>
-              ) : isCashShort ? (
-                <>
-                  <AlertTriangle size={18} /> Faltan {formatCurrency(cashShortage)}
-                </>
-              ) : isCashEmpty ? (
-                <>
-                  <Banknote size={18} /> Ingresa efectivo (o toca "Exacto")
+                  <ShoppingCart size={20} /> Carrito Vacío
                 </>
               ) : (
                 <>
-                  <CheckCircle size={20} /> Cobrar {formatCurrency(total)}
-                  {paymentMethod === 'Efectivo' && changeDue > 0 ? ` (Cambio: ${formatCurrency(changeDue)})` : ''}
+                  <span>Procesar Venta ({formatCurrency(total)})</span>
+                  <ArrowRight size={20} />
                 </>
               )}
             </button>
@@ -735,42 +951,74 @@ export default function NewSale({ onNavigate }) {
         </div>
       </div>
 
-      {/* MODAL SELECTOR DE TALLA PARA CALZADO */}
+
+      {/* MODAL SELECTOR DE TALLA PARA CALZADO (CON SEPARACIÓN CLARA EUR Y US) */}
       {sizePickerProduct && (
         <div className="modal-overlay" onClick={() => setSizePickerProduct(null)}>
-          <div className="modal modal-sm" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-md" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
-                <Layers size={18} color="var(--accent)" /> Seleccionar Talla
+                <Layers size={18} color="var(--accent)" /> Seleccionar Talla: {sizePickerProduct.name}
               </h2>
               <button className="icon-btn" onClick={() => setSizePickerProduct(null)}>
                 <X size={18} />
               </button>
             </div>
             <div className="modal-body">
-              <p>
-                Elige la talla de <strong>{sizePickerProduct.name}</strong> para agregar al carrito:
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
+                Elige la talla disponible que deseas agregar al carrito:
               </p>
-              <div className="size-selector-grid">
-                {Object.entries(sizePickerProduct.sizesStock || {})
-                  .sort(([a], [b]) => Number(a) - Number(b))
-                  .map(([sz, stockCount]) => {
-                    const available = Number(stockCount) > 0;
-                    const isEur = Number(sz) >= 30;
+
+              {/* TALLAS EUROPEAS (EUR) */}
+              <div style={{ marginBottom: 14 }}>
+                <span className="badge badge-primary" style={{ fontSize: '0.72rem', marginBottom: 8, display: 'inline-block' }}>
+                  🇪🇺 Tallas Europeas (EUR 35 al 42)
+                </span>
+                <div className="size-selector-grid">
+                  {SHOE_SIZES_EUR.map(sz => {
+                    const stockCount = Number((sizePickerProduct.sizesStock || {})[sz]) || 0;
+                    const available = stockCount > 0;
                     return (
                       <button
-                        key={sz}
+                        key={`picker-eur-${sz}`}
                         className={`size-pick-card ${available ? 'available' : 'unavailable'}`}
                         disabled={!available}
                         onClick={() => addToCart(sizePickerProduct, sz)}
                       >
-                        <span className="size-tag-num">{isEur ? `EUR #${sz}` : `US #${sz}`}</span>
+                        <span className="size-tag-num">EUR #{sz}</span>
                         <small className="size-tag-stock">
                           {available ? `${stockCount} en stock` : 'Agotada'}
                         </small>
                       </button>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* TALLAS AMERICANAS (US) */}
+              <div>
+                <span className="badge badge-accent" style={{ fontSize: '0.72rem', marginBottom: 8, display: 'inline-block' }}>
+                  🇺🇸 Tallas Americanas (US 4 al 11)
+                </span>
+                <div className="size-selector-grid">
+                  {SHOE_SIZES_US.map(sz => {
+                    const stockCount = Number((sizePickerProduct.sizesStock || {})[sz]) || 0;
+                    const available = stockCount > 0;
+                    return (
+                      <button
+                        key={`picker-us-${sz}`}
+                        className={`size-pick-card ${available ? 'available' : 'unavailable'}`}
+                        disabled={!available}
+                        onClick={() => addToCart(sizePickerProduct, sz)}
+                      >
+                        <span className="size-tag-num">US #{sz}</span>
+                        <small className="size-tag-stock">
+                          {available ? `${stockCount} en stock` : 'Agotada'}
+                        </small>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
             <div className="modal-actions">

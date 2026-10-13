@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Archivos comprimidos y variables de entorno sensibles
+*.rar
+*.zip
+.env
+backend/.env

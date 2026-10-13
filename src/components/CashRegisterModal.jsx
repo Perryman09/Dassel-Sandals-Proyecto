@@ -21,16 +21,19 @@ export default function CashRegisterModal({ onClose }) {
   const balance = getCashBalance();
 
   const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'new-expense' | 'new-entry'
+  const [filterScope, setFilterScope] = useState('today'); // 'today' | 'all'
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0].id);
   const [description, setDescription] = useState('');
 
-  const handleSubmitExpense = (e) => {
+  const displayedMovements = filterScope === 'today' ? balance.movements : (balance.allMovements || balance.movements);
+
+  const handleSubmitExpense = async (e) => {
     e.preventDefault();
     const val = Number(amount);
     if (!val || val <= 0) return;
 
-    addCashMovement({
+    await addCashMovement({
       type: 'salida',
       category,
       description: description.trim() || category,
@@ -39,15 +42,16 @@ export default function CashRegisterModal({ onClose }) {
 
     setAmount('');
     setDescription('');
+    setFilterScope('today');
     setActiveTab('summary');
   };
 
-  const handleSubmitEntry = (e) => {
+  const handleSubmitEntry = async (e) => {
     e.preventDefault();
     const val = Number(amount);
     if (!val || val <= 0) return;
 
-    addCashMovement({
+    await addCashMovement({
       type: 'entrada',
       category: 'Aporte de Efectivo',
       description: description.trim() || 'Ingreso de efectivo para cambio',
@@ -56,6 +60,7 @@ export default function CashRegisterModal({ onClose }) {
 
     setAmount('');
     setDescription('');
+    setFilterScope('today');
     setActiveTab('summary');
   };
 
@@ -108,7 +113,7 @@ export default function CashRegisterModal({ onClose }) {
               className={`btn ${activeTab === 'summary' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setActiveTab('summary')}
             >
-              Historial de Hoy ({balance.movements.length})
+              Historial ({balance.movements.length} hoy / {(balance.allMovements || []).length} total)
             </button>
             <button
               className={`btn ${activeTab === 'new-expense' ? 'btn-danger' : 'btn-ghost'}`}
@@ -213,57 +218,100 @@ export default function CashRegisterModal({ onClose }) {
             </form>
           )}
 
-          {/* PESTAÑA 3: HISTORIAL DE MOVIMIENTOS DE CAJA DE HOY */}
+          {/* PESTAÑA 3: HISTORIAL DE MOVIMIENTOS DE CAJA */}
           {activeTab === 'summary' && (
-            <div className="table-wrapper" style={{ marginTop: 12, maxHeight: 320, overflowY: 'auto' }}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Hora</th>
-                    <th>Tipo</th>
-                    <th>Categoría</th>
-                    <th>Descripción</th>
-                    <th style={{ textAlign: 'right' }}>Monto (C$)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {balance.movements.length === 0 ? (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${filterScope === 'today' ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => setFilterScope('today')}
+                    style={{ fontSize: '0.8rem', padding: '4px 10px' }}
+                  >
+                    Movimientos de Hoy ({balance.movements.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${filterScope === 'all' ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => setFilterScope('all')}
+                    style={{ fontSize: '0.8rem', padding: '4px 10px' }}
+                  >
+                    Todo el Historial ({(balance.allMovements || []).length})
+                  </button>
+                </div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {filterScope === 'today' ? 'Mostrando sólo movimientos del turno de hoy' : 'Mostrando todo el historial guardado permanentemente'}
+                </span>
+              </div>
+
+              <div className="table-wrapper" style={{ maxHeight: 320, overflowY: 'auto' }}>
+                <table className="table">
+                  <thead>
                     <tr>
-                      <td colSpan={5} className="empty-cell">
-                        No hay movimientos de caja registrados hoy aún
-                      </td>
+                      <th>Fecha / Hora</th>
+                      <th>Tipo</th>
+                      <th>Categoría</th>
+                      <th>Descripción</th>
+                      <th style={{ textAlign: 'right' }}>Monto (C$)</th>
                     </tr>
-                  ) : (
-                    balance.movements.map(m => (
-                      <tr key={m.id}>
-                        <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          {formatDateTime(m.date)}
-                        </td>
-                        <td>
-                          <span
-                            className={`badge ${
-                              m.type === 'salida'
-                                ? 'badge-danger'
-                                : m.type === 'apertura'
-                                ? 'badge-info'
-                                : 'badge-success'
-                            }`}
-                          >
-                            {m.type === 'salida' ? 'Salida / Gasto' : m.type === 'apertura' ? 'Apertura' : 'Entrada'}
-                          </span>
-                        </td>
-                        <td><strong>{m.category}</strong></td>
-                        <td style={{ color: 'var(--text-secondary)' }}>{m.description}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                          <span style={{ color: m.type === 'salida' ? 'var(--danger)' : 'var(--success)' }}>
-                            {m.type === 'salida' ? `-${formatCurrency(m.amount)}` : `+${formatCurrency(m.amount)}`}
-                          </span>
+                  </thead>
+                  <tbody>
+                    {displayedMovements.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="empty-cell" style={{ padding: '24px 12px', textAlign: 'center' }}>
+                          <p style={{ margin: 0, color: 'var(--text-muted)' }}>
+                            {filterScope === 'today'
+                              ? 'No hay movimientos de caja registrados hoy aún.'
+                              : 'No hay movimientos de caja en el historial.'}
+                          </p>
+                          {filterScope === 'today' && (balance.allMovements || []).length > 0 && (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-ghost"
+                              style={{ marginTop: 8, color: 'var(--accent)' }}
+                              onClick={() => setFilterScope('all')}
+                            >
+                              Ver {(balance.allMovements || []).length} movimientos de fechas anteriores
+                            </button>
+                          )}
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      displayedMovements.map(m => {
+                        const isSalida = m.type === 'salida' || m.type === 'egreso';
+                        const isApertura = m.type === 'apertura';
+                        const badgeClass = isSalida ? 'badge-danger' : isApertura ? 'badge-info' : 'badge-success';
+                        const badgeText = isSalida ? 'Salida / Gasto' : isApertura ? 'Apertura' : 'Entrada';
+                        const categoryText = m.category || m.notes || (isSalida ? 'Gasto Menor' : isApertura ? 'Fondo Inicial' : 'Aporte de Efectivo');
+                        const descriptionText = m.description || m.reason || 'Movimiento de caja';
+                        const amountColor = isSalida ? 'var(--danger)' : 'var(--success)';
+                        const amountText = isSalida ? `-${formatCurrency(m.amount)}` : `+${formatCurrency(m.amount)}`;
+
+                        return (
+                          <tr key={m.id}>
+                            <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                              {formatDateTime(m.date)}
+                            </td>
+                            <td>
+                              <span className={`badge ${badgeClass}`}>
+                                {badgeText}
+                              </span>
+                            </td>
+                            <td><strong>{categoryText}</strong></td>
+                            <td style={{ color: 'var(--text-secondary)' }}>{descriptionText}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                              <span style={{ color: amountColor }}>
+                                {amountText}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

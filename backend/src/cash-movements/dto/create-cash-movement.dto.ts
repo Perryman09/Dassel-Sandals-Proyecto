@@ -2,7 +2,7 @@ import { IsString, IsNotEmpty, IsNumber, IsOptional, Min } from 'class-validator
 
 export class CreateCashMovementDto {
   @IsString()
-  @IsNotEmpty({ message: 'El tipo de movimiento es obligatorio (apertura, ingreso, egreso, cierre)' })
+  @IsNotEmpty({ message: 'El tipo de movimiento es obligatorio (apertura, ingreso, egreso, salida, entrada, cierre)' })
   type: string;
 
   @IsNumber()
@@ -10,8 +10,16 @@ export class CreateCashMovementDto {
   amount: number;
 
   @IsString()
-  @IsNotEmpty({ message: 'El motivo es obligatorio' })
-  reason: string;
+  @IsOptional()
+  reason?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsString()
+  @IsOptional()
+  category?: string;
 
   @IsString()
   @IsOptional()

@@ -32,112 +32,9 @@ export const initialCategories = [
   },
 ];
 
-export const initialSuppliers = [
-  {
-    id: 1,
-    code: 'PROV-001',
-    name: 'Calzados & Tacones León S.A.',
-    contactPerson: 'Carlos Morales',
-    phone: '8822 1100',
-    email: 'ventas@calzadosleon.ni',
-    ruc: 'J031000045892',
-    category: 'zapatos',
-    address: 'Km 4.5 Carretera Norte, Managua',
-    notes: 'Proveedor principal de sandalias de cuero y tacones de plataforma',
-    status: 'active',
-  },
-  {
-    id: 2,
-    code: 'PROV-002',
-    name: 'Platería & Joyas San Jerónimo',
-    contactPerson: 'Elena Vega',
-    phone: '8455 9988',
-    email: 'contacto@joyassanjeronimo.com',
-    ruc: 'J032000084711',
-    category: 'joyas',
-    address: 'Barrio Monimbó, Masaya',
-    notes: 'Artesanos en plata 925, filigrana y pulseras con piedras semipreciosas',
-    status: 'active',
-  },
-  {
-    id: 3,
-    code: 'PROV-003',
-    name: 'Importadora Moda & Tacones Centroamérica',
-    contactPerson: 'Kevin Rivas',
-    phone: '8911 3344',
-    email: 'pedidos@modacentroamerica.com',
-    ruc: 'J031000077889',
-    category: 'zapatos',
-    address: 'Zona Franca Las Mercedes, Managua',
-    notes: 'Tacones importados, stilettos y sandalias de fiesta (Tallas 35-42 EUR y US)',
-    status: 'active',
-  },
-];
+export const initialSuppliers = [];
 
-export const initialPurchases = [
-  {
-    id: 1,
-    purchaseNumber: 'COM-0001',
-    invoiceNumber: 'FAC-8420',
-    supplierId: 1,
-    supplierName: 'Calzados & Tacones León S.A.',
-    date: '2026-10-05T10:00:00',
-    paymentMethod: 'Transferencia',
-    items: [
-      {
-        productId: 1,
-        productCode: 'DS-ZAP-001',
-        productName: 'Sandalia Maya Artesanal',
-        quantity: 15,
-        unitCost: 350,
-        subtotal: 5250,
-        sizesBreakdown: { '36': 3, '37': 5, '38': 5, '39': 2 },
-      },
-      {
-        productId: 4,
-        productCode: 'DS-ZAP-004',
-        productName: 'Plataforma Yute Bohemia',
-        quantity: 10,
-        unitCost: 450,
-        subtotal: 4500,
-        sizesBreakdown: { '37': 4, '38': 4, '39': 2 },
-      },
-    ],
-    total: 9750,
-    status: 'received',
-    notes: 'Lote de inicio de temporada recibido en óptimas condiciones',
-  },
-  {
-    id: 2,
-    purchaseNumber: 'COM-0002',
-    invoiceNumber: 'FAC-1290',
-    supplierId: 2,
-    supplierName: 'Platería & Joyas San Jerónimo',
-    date: '2026-10-06T14:30:00',
-    paymentMethod: 'Efectivo',
-    items: [
-      {
-        productId: 8,
-        productCode: 'DS-JOY-001',
-        productName: 'Collar Turquesa Bohemio',
-        quantity: 20,
-        unitCost: 150,
-        subtotal: 3000,
-      },
-      {
-        productId: 10,
-        productCode: 'DS-JOY-003',
-        productName: 'Aretes Luna y Sol Filigrana',
-        quantity: 25,
-        unitCost: 120,
-        subtotal: 3000,
-      },
-    ],
-    total: 6000,
-    status: 'received',
-    notes: 'Compra de surtido de joyería fina en plata y oro',
-  },
-];
+export const initialPurchases = [];
 
 // Lógica oficial de Descuento de Mayoreo (Calzado & Joyas):
 // De 3 a 4 piezas -> 5%
@@ -156,335 +53,54 @@ export function getWholesaleTier(totalPieces) {
   return { percent: 0, tierName: 'Detalle (0%)', nextTierPieces: 3 - totalPieces, nextPercent: 5 };
 }
 
-const initialProducts = [
-  {
-    id: 1,
-    code: 'DS-ZAP-001',
-    name: 'Sandalia Maya Artesanal',
-    category: 'zapatos',
-    subcategory: 'Sandalias',
-    description: 'Sandalia artesanal con bordado maya y suela anatómica',
-    costPrice: 350,
-    salePrice: 650,
-    stock: 25,
-    minStock: 5,
-    size: 'US 5-9',
-    sizesStock: { '5': 2, '6': 6, '7': 8, '7.5': 4, '8': 3, '9': 2 },
-    material: 'Cuero sintético',
-    color: 'Beige',
-    status: 'active',
-    createdAt: '2026-09-01',
-  },
-  {
-    id: 2,
-    code: 'DS-ZAP-002',
-    name: 'Huarache Clásico Piel',
-    category: 'zapatos',
-    subcategory: 'Huaraches',
-    description: 'Huarache tejido a mano en piel genuina con suela de hule',
-    costPrice: 280,
-    salePrice: 520,
-    stock: 18,
-    minStock: 5,
-    size: 'US 6-10',
-    sizesStock: { '6': 3, '7': 5, '8': 5, '9': 3, '10': 2 },
-    material: 'Cuero genuino',
-    color: 'Café Caramelo',
-    status: 'active',
-    createdAt: '2026-09-03',
-  },
-  {
-    id: 3,
-    code: 'DS-ZAP-003',
-    name: 'Sandalia Playa Sunset',
-    category: 'zapatos',
-    subcategory: 'Sandalias',
-    description: 'Sandalia impermeable ultraligera para alberca y playa',
-    costPrice: 180,
-    salePrice: 380,
-    stock: 40,
-    minStock: 10,
-    size: 'US 5-9',
-    sizesStock: { '5': 6, '6': 10, '7': 14, '8': 8, '9': 2 },
-    material: 'EVA Premium',
-    color: 'Negro Mate',
-    status: 'active',
-    createdAt: '2026-09-05',
-  },
-  {
-    id: 4,
-    code: 'DS-ZAP-004',
-    name: 'Plataforma Yute Bohemia',
-    category: 'zapatos',
-    subcategory: 'Plataformas',
-    description: 'Sandalia alta con tacón de cuña de yute trenzado',
-    costPrice: 450,
-    salePrice: 850,
-    stock: 12,
-    minStock: 5,
-    size: 'US 6-8.5',
-    sizesStock: { '6': 2, '7': 5, '8': 4, '8.5': 1 },
-    material: 'Yute y Cuero',
-    color: 'Dorado / Natural',
-    status: 'active',
-    createdAt: '2026-09-10',
-  },
-  {
-    id: 5,
-    code: 'DS-ZAP-005',
-    name: 'Flat Confort Acolchada',
-    category: 'zapatos',
-    subcategory: 'Flats',
-    description: 'Sandalia de piso ultra cómoda con plantilla de memory foam',
-    costPrice: 200,
-    salePrice: 420,
-    stock: 3,
-    minStock: 5,
-    size: 'US 6-8',
-    sizesStock: { '6': 1, '7': 1, '8': 1 },
-    material: 'Gamuza sintética',
-    color: 'Rosa Palo',
-    status: 'active',
-    createdAt: '2026-09-12',
-  },
-  {
-    id: 6,
-    code: 'DS-ZAP-006',
-    name: 'Huarache Frida Mexicano',
-    category: 'zapatos',
-    subcategory: 'Huaraches',
-    description: 'Diseño tradicional artesanal con costura reforzada',
-    costPrice: 320,
-    salePrice: 580,
-    stock: 0,
-    minStock: 5,
-    size: 'US 7-11',
-    sizesStock: { '7': 0, '8': 0, '9': 0, '10': 0, '11': 0 },
-    material: 'Piel Vacuna',
-    color: 'Miel',
-    status: 'active',
-    createdAt: '2026-09-15',
-  },
-  {
-    id: 7,
-    code: 'DS-ZAP-007',
-    name: 'Sandalia Tiras Brillantes',
-    category: 'zapatos',
-    subcategory: 'Sandalias',
-    description: 'Sandalia de fiesta con tiras delgadas brillantes',
-    costPrice: 400,
-    salePrice: 750,
-    stock: 8,
-    minStock: 5,
-    size: 'US 5-8.5',
-    sizesStock: { '5': 1, '6': 2, '7': 3, '8.5': 2 },
-    material: 'Microfibra y Strass',
-    color: 'Dorado',
-    status: 'active',
-    createdAt: '2026-09-18',
-  },
-  {
-    id: 8,
-    code: 'DS-JOY-001',
-    name: 'Collar Turquesa Bohemio',
-    category: 'joyas',
-    subcategory: 'Collares',
-    description: 'Collar con piedra natural turquesa y cadena de chapa de oro',
-    costPrice: 150,
-    salePrice: 350,
-    stock: 15,
-    minStock: 3,
-    size: '45 cm',
-    material: 'Chapa de oro y Turquesa',
-    color: 'Turquesa / Oro',
-    status: 'active',
-    createdAt: '2026-09-02',
-  },
-  {
-    id: 9,
-    code: 'DS-JOY-002',
-    name: 'Pulsera Conchas Marinas',
-    category: 'joyas',
-    subcategory: 'Pulseras',
-    description: 'Pulsera ajustable tejida a mano con dijes de cauri natural',
-    costPrice: 80,
-    salePrice: 180,
-    stock: 30,
-    minStock: 5,
-    size: 'Ajustable',
-    material: 'Hilo encerado y Cauri',
-    color: 'Blanco / Dorado',
-    status: 'active',
-    createdAt: '2026-09-04',
-  },
-  {
-    id: 10,
-    code: 'DS-JOY-003',
-    name: 'Aretes Luna y Sol Filigrana',
-    category: 'joyas',
-    subcategory: 'Aretes',
-    description: 'Par de aretes asimétricos con diseño grabado fino',
-    costPrice: 120,
-    salePrice: 280,
-    stock: 20,
-    minStock: 5,
-    size: '3.5 cm',
-    material: 'Acero quirúrgico dorado',
-    color: 'Dorado',
-    status: 'active',
-    createdAt: '2026-09-06',
-  },
-  {
-    id: 11,
-    code: 'DS-JOY-004',
-    name: 'Anillo Flor de Loto Plata',
-    category: 'joyas',
-    subcategory: 'Anillos',
-    description: 'Anillo abierto ajustable con detalle en plata esterlina',
-    costPrice: 90,
-    salePrice: 220,
-    stock: 2,
-    minStock: 5,
-    size: 'Ajustable',
-    material: 'Plata 925',
-    color: 'Plateado',
-    status: 'active',
-    createdAt: '2026-09-08',
-  },
-  {
-    id: 12,
-    code: 'DS-JOY-005',
-    name: 'Tobillera Playera Perlas',
-    category: 'joyas',
-    subcategory: 'Tobilleras',
-    description: 'Tobillera fina con perlas de río y concha marina',
-    costPrice: 60,
-    salePrice: 150,
-    stock: 25,
-    minStock: 5,
-    size: '24 cm',
-    material: 'Perlas de río cultivadas',
-    color: 'Blanco Perlado',
-    status: 'active',
-    createdAt: '2026-09-11',
-  },
-  {
-    id: 13,
-    code: 'DS-JOY-006',
-    name: 'Collar Mandala Sagrado',
-    category: 'joyas',
-    subcategory: 'Collares',
-    description: 'Medallón con dije de geometría sagrada y cadena larga',
-    costPrice: 130,
-    salePrice: 300,
-    stock: 0,
-    minStock: 3,
-    size: '60 cm',
-    material: 'Bronce antiguo',
-    color: 'Bronce Vintage',
-    status: 'inactive',
-    createdAt: '2026-09-14',
-  },
-  {
-    id: 14,
-    code: 'DS-JOY-007',
-    name: 'Pulsera Piedra Volcánica',
-    category: 'joyas',
-    subcategory: 'Pulseras',
-    description: 'Pulsera elástica de cuentas de lava volcánica natural',
-    costPrice: 100,
-    salePrice: 240,
-    stock: 14,
-    minStock: 5,
-    size: '19 cm',
-    material: 'Piedra volcánica',
-    color: 'Negro Mate',
-    status: 'active',
-    createdAt: '2026-09-20',
-  },
-];
+const initialProducts = [];
 
-const initialSales = [
-  {
-    id: 1,
-    saleNumber: 'VTA-0001',
-    date: '2026-10-07T10:30:00',
-    items: [
-      { productId: 1, productCode: 'DS-ZAP-001', productName: 'Sandalia Maya Artesanal', selectedSize: '24', quantity: 2, price: 650, costPrice: 350, subtotal: 1300 },
-      { productId: 8, productCode: 'DS-JOY-001', productName: 'Collar Turquesa Bohemio', selectedSize: '', quantity: 1, price: 350, costPrice: 150, subtotal: 350 },
-    ],
-    subtotal: 1650,
-    discount: 0,
-    total: 1650,
-    paymentMethod: 'Efectivo',
-    receivedAmount: 2000,
-    customerName: 'María García',
-    customerPhone: '88776655',
-    status: 'completed',
-  },
-  {
-    id: 2,
-    saleNumber: 'VTA-0002',
-    date: '2026-10-07T12:15:00',
-    items: [
-      { productId: 3, productCode: 'DS-ZAP-003', productName: 'Sandalia Playa Sunset', selectedSize: '23', quantity: 3, price: 380, costPrice: 180, subtotal: 1140 },
-    ],
-    subtotal: 1140,
-    discount: 100,
-    total: 1040,
-    paymentMethod: 'Tarjeta',
-    receivedAmount: null,
-    customerName: 'Ana López',
-    customerPhone: '87654321',
-    status: 'completed',
-  },
-  {
-    id: 3,
-    saleNumber: 'VTA-0003',
-    date: '2026-10-06T14:00:00',
-    items: [
-      { productId: 4, productCode: 'DS-ZAP-004', productName: 'Plataforma Yute Bohemia', selectedSize: '24', quantity: 1, price: 850, costPrice: 450, subtotal: 850 },
-      { productId: 10, productCode: 'DS-JOY-003', productName: 'Aretes Luna y Sol Filigrana', selectedSize: '', quantity: 2, price: 280, costPrice: 120, subtotal: 560 },
-    ],
-    subtotal: 1410,
-    discount: 0,
-    total: 1410,
-    paymentMethod: 'Transferencia',
-    receivedAmount: null,
-    customerName: 'Laura Martínez',
-    customerPhone: '85544332',
-    status: 'completed',
-  },
-  {
-    id: 4,
-    saleNumber: 'VTA-0004',
-    date: '2026-10-06T16:45:00',
-    items: [
-      { productId: 9, productCode: 'DS-JOY-002', productName: 'Pulsera Conchas Marinas', selectedSize: '', quantity: 5, price: 180, costPrice: 80, subtotal: 900 },
-    ],
-    subtotal: 900,
-    discount: 50,
-    total: 850,
-    paymentMethod: 'Efectivo',
-    receivedAmount: 1000,
-    customerName: 'Roberto Sánchez',
-    customerPhone: '',
-    status: 'completed',
-  },
-];
+const initialSales = [];
 
-const initialMovements = [
-  { id: 1, date: '2026-10-07T12:15:00', type: 'salida', reason: 'Venta VTA-0002', productCode: 'DS-ZAP-003', productName: 'Sandalia Playa Sunset (Talla 23)', quantity: 3, remainingStock: 40 },
-  { id: 2, date: '2026-10-07T10:30:00', type: 'salida', reason: 'Venta VTA-0001', productCode: 'DS-ZAP-001', productName: 'Sandalia Maya Artesanal (Talla 24)', quantity: 2, remainingStock: 25 },
-  { id: 3, date: '2026-10-07T09:00:00', type: 'entrada', reason: 'Recepción Taller Artesanal', productCode: 'DS-ZAP-001', productName: 'Sandalia Maya Artesanal', quantity: 15, remainingStock: 27 },
-];
+const initialMovements = [];
 
-const initialCashMovements = [
-  { id: 1, date: '2026-10-07T08:30:00', type: 'apertura', category: 'Fondo Inicial', description: 'Apertura de turno en caja', amount: 1500 },
-  { id: 2, date: '2026-10-07T11:00:00', type: 'salida', category: 'Empaque Boutique', description: 'Compra de bolsas con logo y papel seda', amount: 280 },
-  { id: 3, date: '2026-10-07T15:30:00', type: 'salida', category: 'Paquetería y Envíos', description: 'Pago de mensajería para entrega de sandalias', amount: 150 },
-  { id: 4, date: '2026-10-07T16:00:00', type: 'entrada', category: 'Aporte de Cambio', description: 'Ingreso de monedas y billetes menores para cambio', amount: 500 },
-];
+export const normalizeCashMovement = (m) => {
+  if (!m) return null;
+  const rawType = String(m.type || '').toLowerCase();
+  const type = (rawType === 'egreso' || rawType === 'salida')
+    ? 'salida'
+    : (rawType === 'ingreso' || rawType === 'entrada')
+    ? 'entrada'
+    : rawType === 'apertura'
+    ? 'apertura'
+    : rawType === 'cierre'
+    ? 'cierre'
+    : 'salida';
+
+  return {
+    id: m.id || Date.now(),
+    date: m.date || new Date().toISOString(),
+    type,
+    amount: Number(m.amount) || 0,
+    category: m.category || m.notes || (type === 'salida' ? 'Gasto Menor' : type === 'apertura' ? 'Fondo Inicial' : 'Aporte de Efectivo'),
+    description: m.description || m.reason || m.notes || (type === 'salida' ? 'Salida de Efectivo' : 'Ingreso de Efectivo'),
+    responsible: m.responsible || 'Administración',
+    notes: m.notes || m.category || null,
+    reason: m.reason || m.description || '',
+  };
+};
+
+const initialCashMovements = [];
+
+// Limpiar datos demo antiguos si existían en versiones previas
+try {
+  if (!localStorage.getItem('dassel_production_clean_v1')) {
+    localStorage.removeItem('dassel_products');
+    localStorage.removeItem('dassel_sales');
+    localStorage.removeItem('dassel_movements');
+    localStorage.removeItem('dassel_cash_movements');
+    localStorage.removeItem('dassel_suppliers');
+    localStorage.removeItem('dassel_purchases');
+    localStorage.setItem('dassel_production_clean_v1', 'true');
+  }
+} catch (e) {
+  // ignore
+}
 
 function loadSavedData(key, fallback) {
   try {
@@ -510,7 +126,7 @@ function appReducer(state, action) {
     case 'SET_CATEGORIES':
       return { ...state, categories: action.payload };
     case 'SET_CASH_MOVEMENTS':
-      return { ...state, cashMovements: action.payload };
+      return { ...state, cashMovements: (action.payload || []).map(normalizeCashMovement).filter(Boolean) };
 
     case 'ADD_PRODUCT': {
       const newProduct = { ...action.payload, id: action.payload.id || Date.now() };
@@ -675,15 +291,15 @@ function appReducer(state, action) {
     }
 
     case 'ADD_CASH_MOVEMENT': {
-      const movement = {
+      const movement = normalizeCashMovement({
         ...action.payload,
-        id: Date.now(),
-        date: new Date().toISOString(),
-        amount: Number(action.payload.amount) || 0,
-      };
+        id: action.payload.id || Date.now(),
+        date: action.payload.date || new Date().toISOString(),
+      });
+      const filtered = state.cashMovements.filter(m => m.id !== movement.id);
       return {
         ...state,
-        cashMovements: [movement, ...state.cashMovements],
+        cashMovements: [movement, ...filtered],
       };
     }
 
@@ -748,14 +364,14 @@ function appReducer(state, action) {
       let newCashMovements = [...state.cashMovements];
       if (newPurchase.paymentMethod === 'Efectivo' && newPurchase.total > 0) {
         newCashMovements = [
-          {
+          normalizeCashMovement({
             id: Date.now() + 2,
             date: newPurchase.date,
             type: 'salida',
             category: 'Compra de Mercancía',
             description: `Pago Fact. ${newPurchase.invoiceNumber || 'S/N'} (${newPurchase.supplierName || 'Proveedor'})`,
             amount: Number(newPurchase.total) || 0,
-          },
+          }),
           ...newCashMovements,
         ];
       }
@@ -1043,17 +659,18 @@ export function AppProvider({ children }) {
           if (dbProducts && Array.isArray(dbProducts)) dispatch({ type: 'SET_PRODUCTS', payload: dbProducts });
           if (dbSales && Array.isArray(dbSales)) dispatch({ type: 'SET_SALES', payload: dbSales });
           if (dbMovements && Array.isArray(dbMovements)) dispatch({ type: 'SET_MOVEMENTS', payload: dbMovements });
-          if (dbSuppliers && Array.isArray(dbSuppliers) && dbSuppliers.length > 0) {
+          if (dbSuppliers && Array.isArray(dbSuppliers)) {
             dispatch({ type: 'SET_SUPPLIERS', payload: dbSuppliers });
           }
-          if (dbPurchases && Array.isArray(dbPurchases) && dbPurchases.length > 0) {
+          if (dbPurchases && Array.isArray(dbPurchases)) {
             dispatch({ type: 'SET_PURCHASES', payload: dbPurchases });
           }
           if (dbCategories && Array.isArray(dbCategories) && dbCategories.length > 0) {
             dispatch({ type: 'SET_CATEGORIES', payload: dbCategories });
           }
-          if (dbCashMovements && Array.isArray(dbCashMovements) && dbCashMovements.length > 0) {
-            dispatch({ type: 'SET_CASH_MOVEMENTS', payload: dbCashMovements });
+          if (dbCashMovements && Array.isArray(dbCashMovements)) {
+            const normalizedMoves = dbCashMovements.map(normalizeCashMovement).filter(Boolean);
+            dispatch({ type: 'SET_CASH_MOVEMENTS', payload: normalizedMoves });
           }
         }
       } catch {
@@ -1205,18 +822,21 @@ export function AppProvider({ children }) {
   };
 
   const addCashMovement = async (data) => {
+    const formatted = normalizeCashMovement(data);
     if (backendOnline) {
       try {
-        const created = await api.createCashMovement(data);
+        const created = await api.createCashMovement(formatted);
         if (created) {
-          dispatch({ type: 'ADD_CASH_MOVEMENT', payload: created });
-          return created;
+          const normCreated = normalizeCashMovement(created);
+          dispatch({ type: 'ADD_CASH_MOVEMENT', payload: normCreated });
+          return normCreated;
         }
       } catch (err) {
         console.warn('Fallo al registrar movimiento de caja en backend:', err);
       }
     }
-    dispatch({ type: 'ADD_CASH_MOVEMENT', payload: data });
+    dispatch({ type: 'ADD_CASH_MOVEMENT', payload: formatted });
+    return formatted;
   };
 
   const resetAllData = () => dispatch({ type: 'RESET_ALL' });
@@ -1244,25 +864,40 @@ export function AppProvider({ children }) {
   // Cálculo de Caja del Día (Arqueo)
   const getCashBalance = () => {
     const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const isToday = (dateVal) => {
+      if (!dateVal) return false;
+      if (String(dateVal).startsWith(today)) return true;
+      try {
+        const d = new Date(dateVal);
+        return (
+          d.getFullYear() === now.getFullYear() &&
+          d.getMonth() === now.getMonth() &&
+          d.getDate() === now.getDate()
+        );
+      } catch {
+        return false;
+      }
+    };
 
     // Ventas en efectivo de hoy
     const cashSalesToday = state.sales
-      .filter(s => s.status === 'completed' && s.paymentMethod === 'Efectivo' && String(s.date).startsWith(today))
+      .filter(s => s.status === 'completed' && s.paymentMethod === 'Efectivo' && isToday(s.date))
       .reduce((acc, s) => acc + (Number(s.total) || 0), 0);
 
     // Movimientos de caja de hoy
-    const todayCashMoves = state.cashMovements.filter(m => String(m.date).startsWith(today));
+    const todayCashMoves = state.cashMovements.filter(m => isToday(m.date));
 
     const totalApertura = todayCashMoves
       .filter(m => m.type === 'apertura')
       .reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
 
     const totalEntradas = todayCashMoves
-      .filter(m => m.type === 'entrada')
+      .filter(m => m.type === 'entrada' || m.type === 'ingreso')
       .reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
 
     const totalSalidas = todayCashMoves
-      .filter(m => m.type === 'salida')
+      .filter(m => m.type === 'salida' || m.type === 'egreso')
       .reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
 
     const saldoEsperado = totalApertura + cashSalesToday + totalEntradas - totalSalidas;
@@ -1274,6 +909,7 @@ export function AppProvider({ children }) {
       totalSalidas,
       saldoEsperado,
       movements: todayCashMoves,
+      allMovements: state.cashMovements,
     };
   };
 
@@ -1380,7 +1016,7 @@ export function AppProvider({ children }) {
           ]);
           if (updatedProds) dispatch({ type: 'SET_PRODUCTS', payload: updatedProds });
           if (updatedMoves) dispatch({ type: 'SET_MOVEMENTS', payload: updatedMoves });
-          if (updatedCash) dispatch({ type: 'SET_CASH_MOVEMENTS', payload: updatedCash });
+          if (updatedCash) dispatch({ type: 'SET_CASH_MOVEMENTS', payload: updatedCash.map(normalizeCashMovement) });
           return created;
         }
       } catch (err) {
@@ -1401,7 +1037,7 @@ export function AppProvider({ children }) {
         ]);
         if (updatedProds) dispatch({ type: 'SET_PRODUCTS', payload: updatedProds });
         if (updatedMoves) dispatch({ type: 'SET_MOVEMENTS', payload: updatedMoves });
-        if (updatedCash) dispatch({ type: 'SET_CASH_MOVEMENTS', payload: updatedCash });
+        if (updatedCash) dispatch({ type: 'SET_CASH_MOVEMENTS', payload: updatedCash.map(normalizeCashMovement) });
       } catch (err) {
         console.warn('Fallo al anular compra en backend:', err);
       }

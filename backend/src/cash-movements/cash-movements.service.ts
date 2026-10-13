@@ -10,7 +10,8 @@ export class CashMovementsService {
     const where: any = {};
 
     if (query?.type && query.type !== 'all') {
-      where.type = query.type;
+      const typeNorm = query.type === 'salida' ? 'egreso' : query.type === 'entrada' ? 'ingreso' : query.type;
+      where.type = typeNorm;
     }
 
     if (query?.dateFrom || query?.dateTo) {
@@ -25,10 +26,17 @@ export class CashMovementsService {
       }
     }
 
-    return this.prisma.cashMovement.findMany({
+    const movements = await this.prisma.cashMovement.findMany({
       where,
       orderBy: { date: 'desc' },
     });
+
+    return movements.map(m => ({
+      ...m,
+      amount: Number(m.amount),
+      category: m.notes || (m.type === 'egreso' ? 'Gasto Menor' : m.type === 'ingreso' ? 'Aporte de Efectivo' : 'Caja'),
+      description: m.reason || m.notes || 'Movimiento de caja',
+    }));
   }
 
   async getSummary() {
@@ -60,15 +68,27 @@ export class CashMovementsService {
   }
 
   async create(dto: CreateCashMovementDto) {
-    return this.prisma.cashMovement.create({
+    const rawType = (dto.type || '').toLowerCase();
+    const type = rawType === 'salida' ? 'egreso' : rawType === 'entrada' ? 'ingreso' : rawType;
+    const reason = dto.reason || dto.description || dto.category || 'Movimiento de caja';
+    const notes = dto.notes || dto.category || null;
+
+    const created = await this.prisma.cashMovement.create({
       data: {
-        type: dto.type,
-        amount: dto.amount,
-        reason: dto.reason,
+        type,
+        amount: Number(dto.amount),
+        reason,
         responsible: dto.responsible || 'Administración',
-        notes: dto.notes || null,
+        notes,
         date: dto.date ? new Date(dto.date) : new Date(),
       },
     });
+
+    return {
+      ...created,
+      amount: Number(created.amount),
+      category: created.notes || (created.type === 'egreso' ? 'Gasto Menor' : created.type === 'ingreso' ? 'Aporte de Efectivo' : 'Caja'),
+      description: created.reason || created.notes || 'Movimiento de caja',
+    };
   }
 }

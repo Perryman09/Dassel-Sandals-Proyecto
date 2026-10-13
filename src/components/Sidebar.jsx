@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   LayoutDashboard, Package, ShoppingCart, FileText,
-  BarChart3, Banknote, ChevronLeft, ChevronRight, RotateCcw,
+  BarChart3, Banknote, ChevronLeft, ChevronRight,
   Palette, Sun, Moon, Truck, LogOut
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -19,7 +19,6 @@ const menuItems = [
 
 export default function Sidebar({ currentPage, onNavigate, collapsed, onToggle }) {
   const {
-    resetAllData,
     backendOnline,
     currentTheme,
     changeTheme,
@@ -29,13 +28,6 @@ export default function Sidebar({ currentPage, onNavigate, collapsed, onToggle }
     logout,
   } = useApp();
   const [showCashModal, setShowCashModal] = useState(false);
-
-  const handleReset = () => {
-    if (window.confirm('¿Deseas restablecer todos los datos a los valores iniciales de demostración?')) {
-      resetAllData();
-      alert('Datos de demostración restablecidos correctamente.');
-    }
-  };
 
   return (
     <>
@@ -214,14 +206,6 @@ export default function Sidebar({ currentPage, onNavigate, collapsed, onToggle }
               {backendOnline ? 'NestJS + PostgreSQL' : 'Modo Local (Offline)'}
             </div>
 
-            <button
-              onClick={handleReset}
-              className="btn btn-ghost btn-sm"
-              style={{ width: '100%', fontSize: '0.75rem', justifyContent: 'center', marginBottom: 8 }}
-              title="Restablecer a datos de ejemplo"
-            >
-              <RotateCcw size={13} /> Reiniciar datos demo
-            </button>
             <p>Dassel Sandals © 2026</p>
             <small style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
               Moneda: Córdobas (C$) · PYME
@@ -245,14 +229,7 @@ export default function Sidebar({ currentPage, onNavigate, collapsed, onToggle }
             >
               <Banknote size={16} color="var(--accent)" />
             </button>
-            <button
-              onClick={handleReset}
-              className="icon-btn"
-              style={{ margin: '0 auto', width: 28, height: 28 }}
-              title="Reiniciar datos demo"
-            >
-              <RotateCcw size={14} />
-            </button>
+           
           </div>
         )}
       </aside>
