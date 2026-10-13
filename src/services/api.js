@@ -2,7 +2,19 @@
 // DASSEL SANDALS - API CLIENT (NestJS + PostgreSQL + Prisma)
 // =========================================================
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+function resolveApiBaseUrl() {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && String(envUrl).trim()) {
+    const clean = String(envUrl).trim().replace(/\/+$/, '');
+    return clean.endsWith('/api') ? clean : `${clean}/api`;
+  }
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return 'https://dassel-sandals.onrender.com/api';
+  }
+  return 'http://localhost:3000/api';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
