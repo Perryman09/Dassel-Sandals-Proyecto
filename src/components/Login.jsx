@@ -133,8 +133,8 @@ export default function Login() {
 
         {isLocked && (
           <div className="login-lock-banner">
-            <p>
-              🔒 <strong>Acceso bloqueado temporalmente</strong>
+            <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Lock size={16} /> <strong>Acceso bloqueado temporalmente</strong>
             </p>
             <div className="countdown-pill">
               Podrás reintentar en <strong>{remainingSeconds}</strong> segundo{remainingSeconds !== 1 ? 's' : ''}...

@@ -17,6 +17,7 @@ export default function Inventory() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [subcategoryFilter, setSubcategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
   const [sortField, setSortField] = useState('code');
@@ -84,12 +85,13 @@ export default function Inventory() {
         (p.color && p.color.toLowerCase().includes(q)) ||
         (p.material && p.material.toLowerCase().includes(q));
       const matchCat = categoryFilter === 'all' || p.category === categoryFilter;
+      const matchSubcat = categoryFilter === 'all' || subcategoryFilter === 'all' || (p.subcategory && p.subcategory.toLowerCase() === subcategoryFilter.toLowerCase());
       const matchStatus = statusFilter === 'all' || p.status === statusFilter;
       let matchStock = true;
       if (stockFilter === 'out') matchStock = p.stock === 0;
       else if (stockFilter === 'low') matchStock = p.stock > 0 && p.stock <= p.minStock;
       else if (stockFilter === 'ok') matchStock = p.stock > p.minStock;
-      return matchSearch && matchCat && matchStatus && matchStock;
+      return matchSearch && matchCat && matchSubcat && matchStatus && matchStock;
     })
     .sort((a, b) => {
       let va = a[sortField], vb = b[sortField];
@@ -122,7 +124,7 @@ export default function Inventory() {
   const handleDelete = (product) => {
     deleteProduct(product.id);
     setDeleteConfirm(null);
-    showNotification(`🗑️ Producto "${product.name}" (${product.code}) eliminado del inventario.`);
+    showNotification(`Producto "${product.name}" (${product.code}) eliminado del inventario.`);
   };
 
   const handleAdjust = async () => {
@@ -134,7 +136,7 @@ export default function Inventory() {
         if (isNaN(qty) || qty === 0) return;
         await adjustStock(adjustModal.id, qty, adjustReason, adjustSelectedSize);
         const sign = qty > 0 ? `+${qty}` : `${qty}`;
-        showNotification(`✅ Existencias de ${adjustModal.name} (Talla #${adjustSelectedSize}) ajustadas (${sign} pares).`);
+        showNotification(`Existencias de ${adjustModal.name} (Talla #${adjustSelectedSize}) ajustadas (${sign} pares).`);
       } else {
         const entries = Object.entries(multiAdjustSizes).filter(([_, d]) => d !== '' && parseInt(d, 10) !== 0);
         if (entries.length === 0) return;
@@ -150,14 +152,14 @@ export default function Inventory() {
 
         const newTotal = Object.values(newSizes).reduce((a, b) => a + (Number(b) || 0), 0);
         await adjustStock(adjustModal.id, totalDelta, adjustReason, null, newSizes);
-        showNotification(`✅ Matriz de tallas de ${adjustModal.name} actualizada (${totalDelta >= 0 ? `+${totalDelta}` : totalDelta} pares, Total: ${newTotal} pares).`);
+        showNotification(`Matriz de tallas de ${adjustModal.name} actualizada (${totalDelta >= 0 ? `+${totalDelta}` : totalDelta} pares, Total: ${newTotal} pares).`);
       }
     } else {
       const qty = parseInt(adjustQty, 10);
       if (isNaN(qty) || qty === 0) return;
       await adjustStock(adjustModal.id, qty, adjustReason);
       const sign = qty > 0 ? `+${qty}` : `${qty}`;
-      showNotification(`✅ Existencias de ${adjustModal.name} ajustadas (${sign} unidades).`);
+      showNotification(`Existencias de ${adjustModal.name} ajustadas (${sign} unidades).`);
     }
 
     setAdjustModal(null);
@@ -216,13 +218,37 @@ export default function Inventory() {
             onChange={e => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
-        <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}>
+        <select
+          value={categoryFilter}
+          onChange={e => {
+            setCategoryFilter(e.target.value);
+            setSubcategoryFilter('all');
+            setPage(1);
+          }}
+        >
           <option value="all">Todas las categorías</option>
           {categories.map(c => (
             <option key={c.id} value={c.id}>
-              {c.icon || '📁'} {c.name}
+              {c.name}
             </option>
           ))}
+        </select>
+        <select
+          value={subcategoryFilter}
+          onChange={e => { setSubcategoryFilter(e.target.value); setPage(1); }}
+          disabled={categoryFilter === 'all'}
+          style={categoryFilter === 'all' ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
+          title={categoryFilter === 'all' ? 'Selecciona una categoría primero para filtrar subcategorías' : 'Filtrar por subcategoría'}
+        >
+          <option value="all">
+            {categoryFilter === 'all'
+              ? 'Todas las subcategorías (requiere categoría)'
+              : 'Todas las subcategorías'}
+          </option>
+          {categoryFilter !== 'all' &&
+            (categories.find(c => c.id === categoryFilter)?.subcategories || []).map(sub => (
+              <option key={sub} value={sub}>{sub}</option>
+            ))}
         </select>
         <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
           <option value="all">Todos los estados</option>
@@ -231,9 +257,9 @@ export default function Inventory() {
         </select>
         <select value={stockFilter} onChange={e => { setStockFilter(e.target.value); setPage(1); }}>
           <option value="all">Todo el stock</option>
-          <option value="ok">✅ Normal / Suficiente</option>
-          <option value="low">⚠️ Stock Bajo</option>
-          <option value="out">❌ Agotados</option>
+          <option value="ok">Normal / Suficiente</option>
+          <option value="low">Stock Bajo</option>
+          <option value="out">Agotados</option>
         </select>
       </div>
 
@@ -388,8 +414,8 @@ export default function Inventory() {
           onSaved={({ type, product: p }) => {
             showNotification(
               type === 'create'
-                ? `✅ Producto "${p.name}" (${p.code}) agregado exitosamente con ${p.stock} unidades.`
-                : `✅ Producto "${p.name}" (${p.code}) actualizado exitosamente (Stock: ${p.stock}).`
+                ? `Producto "${p.name}" (${p.code}) agregado exitosamente con ${p.stock} unidades.`
+                : `Producto "${p.name}" (${p.code}) actualizado exitosamente (Stock: ${p.stock}).`
             );
           }}
         />
@@ -455,7 +481,7 @@ export default function Inventory() {
             <div className="modal-body">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Código: <code>{adjustModal.code}</code> · Tipo: <strong>{isShoeCategory(adjustModal) ? '👡 Calzado' : '💎 Joyería'}</strong>
+                  Código: <code>{adjustModal.code}</code> · Tipo: <strong>{isShoeCategory(adjustModal) ? 'Calzado' : 'Joyería'}</strong>
                 </span>
                 <span className="badge badge-info" style={{ fontSize: '0.85rem' }}>
                   Stock actual: {adjustModal.stock} {isShoeCategory(adjustModal) ? 'pares' : 'piezas'}
@@ -491,7 +517,7 @@ export default function Inventory() {
                         <div style={{ marginBottom: 10, padding: '10px 12px', background: 'var(--bg-tertiary)', borderRadius: 8 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                             <span className="badge badge-primary" style={{ fontSize: '0.72rem', padding: '3px 8px' }}>
-                              🇪🇺 Tallas Europeas (EUR 35 al 42)
+                              Tallas Europeas (EUR 35 al 42)
                             </span>
                           </div>
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -517,7 +543,7 @@ export default function Inventory() {
                         <div style={{ marginBottom: 8, padding: '10px 12px', background: 'var(--bg-tertiary)', borderRadius: 8 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                             <span className="badge badge-accent" style={{ fontSize: '0.72rem', padding: '3px 8px' }}>
-                              🇺🇸 Tallas Americanas (US 4 al 11)
+                              Tallas Americanas (US 4 al 11)
                             </span>
                           </div>
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -609,7 +635,7 @@ export default function Inventory() {
                       {/* MATRIZ EUR */}
                       <div style={{ marginBottom: 12 }}>
                         <span className="badge badge-primary" style={{ fontSize: '0.72rem', marginBottom: 6, display: 'inline-block' }}>
-                          🇪🇺 Tallas Europeas (EUR 35 al 42)
+                          Tallas Europeas (EUR 35 al 42)
                         </span>
                         <div className="shoe-sizes-matrix-grid">
                           {SHOE_SIZES_EUR.map(sz => {
@@ -645,7 +671,7 @@ export default function Inventory() {
                       {/* MATRIZ US */}
                       <div style={{ marginBottom: 12 }}>
                         <span className="badge badge-accent" style={{ fontSize: '0.72rem', marginBottom: 6, display: 'inline-block' }}>
-                          🇺🇸 Tallas Americanas (US 4 al 11)
+                          Tallas Americanas (US 4 al 11)
                         </span>
                         <div className="shoe-sizes-matrix-grid">
                           {SHOE_SIZES_US.map(sz => {

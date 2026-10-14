@@ -8,13 +8,13 @@ import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDateTime } from '../utils/format';
 
 const EXPENSE_CATEGORIES = [
-  { id: 'Empaque Boutique', label: '🛍️ Bolsas y Empaque Boutique' },
-  { id: 'Paquetería y Envíos', label: '📦 Paquetería y Envíos' },
-  { id: 'Limpieza y Tienda', label: '🧹 Insumos de Tienda / Limpieza' },
-  { id: 'Transporte', label: '🚕 Transporte / Diligencias' },
-  { id: 'Refrigerio', label: '☕ Alimentos / Refrigerio Personal' },
-  { id: 'Servicios', label: '⚡ Servicios y Mantenimiento' },
-  { id: 'Otro', label: '📝 Otro Gasto Menor' },
+  { id: 'Empaque Boutique', label: 'Bolsas y Empaque Boutique' },
+  { id: 'Paquetería y Envíos', label: 'Paquetería y Envíos' },
+  { id: 'Limpieza y Tienda', label: 'Insumos de Tienda / Limpieza' },
+  { id: 'Transporte', label: 'Transporte / Diligencias' },
+  { id: 'Refrigerio', label: 'Alimentos / Refrigerio Personal' },
+  { id: 'Servicios', label: 'Servicios y Mantenimiento' },
+  { id: 'Otro', label: 'Otro Gasto Menor' },
 ];
 
 export default function CashRegisterModal({ onClose }) {
@@ -220,7 +220,7 @@ export default function CashRegisterModal({ onClose }) {
                 <small style={{ color: 'var(--text-muted)' }}>
                   {balance.shiftStatus === 'open' && balance.lastOpening ? (
                     <>
-                      🟢 Abierta hoy a las{' '}
+                      Abierta hoy a las{' '}
                       <strong>
                         {new Date(balance.lastOpening.date).toLocaleTimeString('es-NI', {
                           hour: '2-digit',
@@ -229,19 +229,17 @@ export default function CashRegisterModal({ onClose }) {
                       </strong>{' '}
                       por <strong>{balance.lastOpening.responsible || 'Administración'}</strong>
                     </>
-                  ) : balance.shiftStatus === 'closed' && balance.lastClosing ? (
+                  ) : balance.shiftStatus === 'closed' ? (
                     <>
-                      🔴 Turno cerrado hoy a las{' '}
-                      <strong>
-                        {new Date(balance.lastClosing.date).toLocaleTimeString('es-NI', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </strong>{' '}
-                      · Contado al cierre: <strong>{formatCurrency(balance.lastClosing.amount)}</strong>
+                      Turno cerrado hoy{balance.lastClosing ? ` a las ${new Date(balance.lastClosing.date).toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                      {balance.autoClosedAt7pm
+                        ? ' · Cierre automático por regla de las 7:00 PM'
+                        : balance.lastClosing
+                        ? ` · Contado al cierre: ${formatCurrency(balance.lastClosing.amount)}`
+                        : ''}
                     </>
                   ) : (
-                    '⚠️ Aún no has registrado la apertura de caja de hoy. Haz clic en "Abrir Caja" para ingresar el fondo inicial.'
+                    'Aún no has registrado la apertura de caja de hoy. Haz clic en "Abrir Caja" para ingresar el fondo inicial.'
                   )}
                 </small>
               </div>
@@ -507,7 +505,7 @@ export default function CashRegisterModal({ onClose }) {
                     border: '1px solid rgba(59, 130, 246, 0.25)',
                   }}
                 >
-                  💳 <strong>Otros cobros del turno (No afectan efectivo físico):</strong>{' '}
+                  <strong>Otros cobros del turno (No afectan efectivo físico):</strong>{' '}
                   Tarjeta POS: <strong>{formatCurrency(balance.cardSalesToday)}</strong> · Transferencias:{' '}
                   <strong>{formatCurrency(balance.transferSalesToday)}</strong>
                 </div>
@@ -516,7 +514,7 @@ export default function CashRegisterModal({ onClose }) {
               <div className="form-row" style={{ alignItems: 'flex-start' }}>
                 <div className="form-group">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <label style={{ marginBottom: 0 }}>💵 Efectivo Físico Contado en Cajón (C$) *</label>
+                    <label style={{ marginBottom: 0 }}>Efectivo Físico Contado en Cajón (C$) *</label>
                     <button
                       type="button"
                       className="btn btn-ghost"
@@ -788,9 +786,9 @@ export default function CashRegisterModal({ onClose }) {
                         const badgeText = isSalida
                           ? 'Salida / Gasto'
                           : isApertura
-                          ? '🔓 Apertura'
+                          ? 'Apertura'
                           : isCierre
-                          ? '🔒 Cierre Turno'
+                          ? 'Cierre Turno'
                           : 'Entrada';
                         const categoryText =
                           m.category ||

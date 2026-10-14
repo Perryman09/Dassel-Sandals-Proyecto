@@ -176,7 +176,7 @@ export default function ProductDetailModal({ product, onClose, onEdit, onAdjust,
               <div style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <span className="badge badge-primary" style={{ fontSize: '0.74rem' }}>
-                    🇪🇺 Tallas Europeas (EUR 35 al 42)
+                    Tallas Europeas (EUR 35 al 42)
                   </span>
                 </div>
                 <div className="product-sizes-pill-grid">
@@ -199,7 +199,7 @@ export default function ProductDetailModal({ product, onClose, onEdit, onAdjust,
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <span className="badge badge-accent" style={{ fontSize: '0.74rem' }}>
-                    🇺🇸 Tallas Americanas (US 4 al 11)
+                    Tallas Americanas (US 4 al 11)
                   </span>
                 </div>
                 <div className="product-sizes-pill-grid">

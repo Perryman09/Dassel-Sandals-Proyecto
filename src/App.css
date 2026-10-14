@@ -478,6 +478,11 @@
 .badge-info { background: var(--info-bg); color: var(--info); }
 .badge-purple { background: rgba(167, 139, 250, 0.1); color: #a78bfa; }
 .badge-muted { background: rgba(100, 116, 139, 0.15); color: var(--text-muted); }
+.badge-secondary {
+  background: rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: var(--text-primary);
+}
 .badge-outline {
   background: transparent;
   border: 1px solid var(--border-light);
@@ -930,9 +935,136 @@
   font-weight: 600;
 }
 
+/* =========================================================
+   BARRA DE FILTRADO POR SUBCATEGORÍA (POS)
+   ========================================================= */
+.pos-subcat-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-top: 4px;
+}
+
+[data-theme="light"] .pos-subcat-bar {
+  background: rgba(15, 23, 42, 0.03);
+}
+
+.pos-subcat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pos-subcat-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pos-subcat-title strong {
+  color: var(--accent-light);
+}
+
+.pos-subcat-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.pos-subcat-reset:hover {
+  background: rgba(239, 68, 68, 0.22);
+}
+
+.pos-subcat-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.subcat-pill {
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.subcat-pill:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background: var(--bg-card-hover);
+}
+
+.subcat-pill.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0f172a;
+  font-weight: 700;
+  box-shadow: 0 2px 8px var(--accent-bg);
+}
+
+.pos-subcat-cat-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  margin-right: 4px;
+}
+
+.pos-subcat-group-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding-right: 3px;
+  white-space: nowrap;
+}
+
+.pos-prod-color-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent-light);
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin-left: 6px;
+}
+
 .pos-product-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-auto-rows: min-content;
+  align-content: start;
   gap: 12px;
   overflow-y: auto;
   padding-right: 4px;
@@ -949,6 +1081,7 @@
   border-radius: var(--radius);
   cursor: pointer;
   transition: var(--transition);
+  min-height: 120px;
 }
 
 .pos-product-card:hover {
@@ -1333,7 +1466,7 @@
 
 [data-theme="light"] .cart-sticky-bottom {
   box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.08);
-  background: #ffffff;
+  background: var(--bg-card);
 }
 
 .cart-summary-line {
@@ -1896,8 +2029,8 @@
 }
 
 [data-theme="light"] .theme-mode-toggle-btn {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+  background: var(--bg-tertiary);
+  border-color: var(--border);
 }
 
 [data-theme="light"] .theme-mode-toggle-btn:hover {
@@ -1915,8 +2048,8 @@
 }
 
 [data-theme="light"] .theme-picker-box {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+  background: var(--bg-tertiary);
+  border-color: var(--border);
 }
 
 .theme-picker-header {

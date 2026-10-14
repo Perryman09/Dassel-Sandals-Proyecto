@@ -140,13 +140,18 @@ export class SalesService {
         });
 
         // Registrar en Kardex
+        const itemColor = item.color || product.color || null;
+        const sizeDesc = item.selectedSize ? `(Talla ${item.selectedSize})` : null;
+        const colorDesc = itemColor ? `(Color: ${itemColor})` : null;
+        const movementDesc = [product.name, sizeDesc, colorDesc].filter(Boolean).join(' ');
+
         await tx.movement.create({
           data: {
             date: new Date(),
             type: 'salida',
             reason: `Venta ${saleNumber}`,
             productCode: product.code,
-            productName: item.selectedSize ? `${product.name} (Talla ${item.selectedSize})` : product.name,
+            productName: movementDesc,
             quantity: item.quantity,
             remainingStock: newStock,
             productId: product.id,
@@ -159,6 +164,7 @@ export class SalesService {
           productCode: product.code,
           productName: product.name,
           selectedSize: item.selectedSize || null,
+          color: itemColor,
           quantity: item.quantity,
           price: unitPrice,
           costPrice: unitCost,
@@ -197,7 +203,7 @@ export class SalesService {
     });
   }
 
-  async cancelSale(id: number) {
+  async cancelSale(id: number, reason?: string, cancelledBy?: string) {
     const sale = await this.findOne(id);
 
     if (sale.status === 'cancelled') {
@@ -207,25 +213,44 @@ export class SalesService {
     return this.prisma.$transaction(async (tx) => {
       // Reintegrar stock y registrar en Kardex
       for (const item of sale.items) {
+        if (!item.productId) continue;
         const product = await tx.product.findUnique({
           where: { id: item.productId },
         });
 
         if (product) {
           const restoredStock = product.stock + item.quantity;
+          let updatedSizesStock: any = product.sizesStock;
+
+          if (item.selectedSize && product.sizesStock && typeof product.sizesStock === 'object') {
+            const currentSizes = { ...(product.sizesStock as Record<string, number>) };
+            currentSizes[item.selectedSize] = (Number(currentSizes[item.selectedSize]) || 0) + item.quantity;
+            updatedSizesStock = currentSizes;
+          }
 
           await tx.product.update({
             where: { id: product.id },
-            data: { stock: restoredStock },
+            data: {
+              stock: restoredStock,
+              sizesStock: updatedSizesStock,
+            },
           });
+
+          const itemDesc = [
+            item.productName,
+            item.selectedSize ? `(Talla ${item.selectedSize})` : null,
+            item.color ? `(Color: ${item.color})` : null,
+          ].filter(Boolean).join(' ');
+
+          const reasonNote = reason?.trim() ? ` — Motivo: ${reason.trim()}` : '';
 
           await tx.movement.create({
             data: {
               date: new Date(),
               type: 'entrada',
-              reason: `Devolución por cancelación de venta ${sale.saleNumber}`,
+              reason: `Devolución por cancelación de venta ${sale.saleNumber}${reasonNote}`,
               productCode: item.productCode,
-              productName: item.productName,
+              productName: itemDesc,
               quantity: item.quantity,
               remainingStock: restoredStock,
               productId: product.id,
@@ -234,10 +259,15 @@ export class SalesService {
         }
       }
 
-      // Cambiar estado a cancelada
+      // Cambiar estado a cancelada con auditoría completa
       return tx.sale.update({
         where: { id },
-        data: { status: 'cancelled' },
+        data: {
+          status: 'cancelled',
+          cancelledAt: new Date(),
+          cancelReason: reason?.trim() || 'Cancelación de venta solicitada por el usuario',
+          cancelledBy: cancelledBy?.trim() || 'Administración',
+        },
         include: { items: true },
       });
     });

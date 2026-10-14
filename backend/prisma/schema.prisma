@@ -47,6 +47,9 @@ model Sale {
   customerName   String     @default("Cliente General")
   customerPhone  String?
   status         String     @default("completed") // 'completed' | 'cancelled'
+  cancelledAt    DateTime?
+  cancelReason   String?
+  cancelledBy    String?
   userId         Int?
   user           User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt      DateTime   @default(now())
@@ -67,6 +70,7 @@ model SaleItem {
   productCode  String
   productName  String
   selectedSize String?
+  color        String?
   quantity     Int
   price        Decimal  @db.Decimal(10, 2)
   costPrice    Decimal  @db.Decimal(10, 2)

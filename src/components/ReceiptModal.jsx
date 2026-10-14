@@ -52,10 +52,12 @@ export default function ReceiptModal({ sale, onClose }) {
                     <div className="receipt-item-name">
                       {item.productName}
                       {item.selectedSize ? ` (Talla #${item.selectedSize})` : ''}
+                      {item.color ? ` - Color: ${item.color}` : ''}
                     </div>
                     <small className="receipt-item-code">
                       {item.productCode} @ {formatCurrency(item.price)}
                       {item.selectedSize ? ` · Talla ${Number(item.selectedSize) >= 30 ? `EUR #${item.selectedSize}` : `US #${item.selectedSize}`}` : ''}
+                      {item.color ? ` · Color: ${item.color}` : ''}
                     </small>
                   </td>
                   <td style={{ textAlign: 'center' }}>{item.quantity}</td>
@@ -107,7 +109,7 @@ export default function ReceiptModal({ sale, onClose }) {
           <div className="receipt-footer">
             <p>¡Gracias por su compra en Dassel Sandals!</p>
             <p><strong>15 días de devolución o cambio en calzado con este ticket.</strong></p>
-            <p>Calzado y Joyería con Encanto Artesanal ✨</p>
+            <p>Calzado y Joyería con Encanto Artesanal</p>
             <div className="barcode-sim">
               ||| | |||| | ||| || |||| | |||
             </div>

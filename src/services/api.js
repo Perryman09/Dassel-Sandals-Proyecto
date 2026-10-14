@@ -108,9 +108,10 @@ export const api = {
     });
   },
 
-  async cancelSale(id) {
+  async cancelSale(id, reason, cancelledBy) {
     return request(`/sales/${id}/cancel`, {
       method: 'PATCH',
+      body: JSON.stringify({ reason, cancelledBy }),
     });
   },
 

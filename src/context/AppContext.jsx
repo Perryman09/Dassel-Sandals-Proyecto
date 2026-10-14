@@ -21,22 +21,22 @@ export const initialCategories = [
   {
     id: 'zapatos',
     name: 'Zapatos & Tacones',
-    icon: '👡',
+    icon: '',
     type: 'zapatos',
     subcategories: ['Sandalias', 'Huaraches', 'Plataformas', 'Flats', 'Tacones', 'Tacones Altos', 'Stilettos', 'Botines', 'Otro'],
   },
   {
     id: 'joyas',
     name: 'Joyas & Accesorios',
-    icon: '💎',
+    icon: '',
     type: 'joyas',
     subcategories: ['Collares', 'Pulseras', 'Aretes', 'Anillos', 'Tobilleras', 'Dijes', 'Cadenas', 'Juegos', 'Otro'],
   },
 ];
 
 const SHOE_KEYWORDS_REGEX = /(zapato|calzado|sandalia|tacon|tacón|huarache|plataforma|flat|bota|botin|botín|stiletto|chinela|tenis|zapatilla|alpargata|mocasin|mocasín|cuña|mule)/i;
-const SHOE_ICONS = ['👡', '👠', '👟', '👢', '👞', '🥿', '🥾'];
-const JEWELRY_ICONS = ['💎', '💍', '📿', '👑', '✨', '⌚'];
+const SHOE_ICONS = ['\u{1F461}', '\u{1F460}', '\u{1F45F}', '\u{1F462}', '\u{1F45E}', '\u{1FA74}', '\u{1F97E}'];
+const JEWELRY_ICONS = ['\u{1F48E}', '\u{1F48D}', '\u{1F4FF}', '\u{1F451}', '\u2728', '\u231A'];
 
 // Helper inteligente para identificar si una categoría o producto es de Calzado (Zapatos con Tallas) o Joyería
 export function isShoeCategory(catIdOrObj, categoriesList = initialCategories) {
@@ -89,7 +89,7 @@ export function getCategoryInfo(catIdOrObj, categoriesList = initialCategories) 
   return {
     id: found ? found.id : (catId || (isShoe ? 'zapatos' : 'joyas')),
     name: found ? found.name : (catId ? catId.charAt(0).toUpperCase() + catId.slice(1) : (isShoe ? 'Calzado' : 'Joyería')),
-    icon: found?.icon || (isShoe ? '👡' : '💎'),
+    icon: '',
     isShoe,
   };
 }
@@ -305,13 +305,15 @@ function appReducer(state, action) {
             if (updatedSizes && it.selectedSize && updatedSizes[it.selectedSize] !== undefined) {
               updatedSizes[it.selectedSize] = Math.max(0, Number(updatedSizes[it.selectedSize]) - Number(it.quantity || 1));
             }
+            const sizePart = it.selectedSize ? ` (Talla ${it.selectedSize})` : '';
+            const colorPart = (it.color || p.color) ? ` (Color: ${it.color || p.color})` : '';
             newSaleMovements.push({
               id: Date.now() + Math.random(),
               date: new Date().toISOString(),
               type: 'salida',
               reason: `Venta ${newSale.saleNumber}`,
               productCode: p.code,
-              productName: it.selectedSize ? `${p.name} (Talla ${it.selectedSize})` : p.name,
+              productName: `${p.name}${sizePart}${colorPart}`,
               quantity: Number(it.quantity || 1),
               remainingStock: afterStock,
             });
@@ -331,7 +333,12 @@ function appReducer(state, action) {
     }
 
     case 'CANCEL_SALE': {
-      const sale = state.sales.find(s => s.id === action.payload);
+      const saleId = typeof action.payload === 'object' ? action.payload.id : action.payload;
+      const cancelReason = typeof action.payload === 'object' ? action.payload.reason : null;
+      const cancelledBy = typeof action.payload === 'object' ? action.payload.cancelledBy : null;
+      const cancelledAt = (typeof action.payload === 'object' && action.payload.cancelledAt) || new Date().toISOString();
+
+      const sale = state.sales.find(s => s.id === saleId);
       if (!sale || sale.status === 'cancelled') return state;
       const returnMovements = [];
 
@@ -346,13 +353,16 @@ function appReducer(state, action) {
             if (updatedSizes && it.selectedSize && updatedSizes[it.selectedSize] !== undefined) {
               updatedSizes[it.selectedSize] = Number(updatedSizes[it.selectedSize]) + Number(it.quantity || 1);
             }
+            const sizePart = it.selectedSize ? ` (Talla ${it.selectedSize})` : '';
+            const colorPart = (it.color || p.color) ? ` (Color: ${it.color || p.color})` : '';
+            const reasonSuffix = cancelReason?.trim() ? ` — Motivo: ${cancelReason.trim()}` : '';
             returnMovements.push({
               id: Date.now() + Math.random(),
-              date: new Date().toISOString(),
+              date: cancelledAt,
               type: 'entrada',
-              reason: `Devolución por cancelación ${sale.saleNumber}`,
+              reason: `Devolución por cancelación de venta ${sale.saleNumber}${reasonSuffix}`,
               productCode: it.productCode,
-              productName: it.selectedSize ? `${it.productName} (Talla ${it.selectedSize})` : it.productName,
+              productName: `${it.productName || p.name}${sizePart}${colorPart}`,
               quantity: Number(it.quantity || 1),
               remainingStock: afterStock,
             });
@@ -365,7 +375,17 @@ function appReducer(state, action) {
 
       return {
         ...state,
-        sales: state.sales.map(s => (s.id === action.payload ? { ...s, status: 'cancelled' } : s)),
+        sales: state.sales.map(s =>
+          s.id === saleId
+            ? {
+                ...s,
+                status: 'cancelled',
+                cancelledAt,
+                cancelReason: cancelReason || s.cancelReason || 'Cancelada por el usuario',
+                cancelledBy: cancelledBy || s.cancelledBy || 'Administración',
+              }
+            : s
+        ),
         products: restoredProducts,
         movements: [...returnMovements, ...state.movements],
       };
@@ -777,11 +797,56 @@ export function AppProvider({ children }) {
     applyTheme(currentTheme, nextMode);
   };
 
-  // Comprobar estado del backend NestJS
+  // Función para forzar sincronización de datos desde el backend / base de datos Supabase
+  const refreshData = async () => {
+    try {
+      const online = await api.checkHealth();
+      setBackendOnline(online);
+      if (online) {
+        const [
+          dbProducts,
+          dbSales,
+          dbMovements,
+          dbSuppliers,
+          dbPurchases,
+          dbCategories,
+          dbCashMovements,
+        ] = await Promise.all([
+          api.getProducts().catch(() => null),
+          api.getSales().catch(() => null),
+          api.getMovements().catch(() => null),
+          api.getSuppliers().catch(() => null),
+          api.getPurchases().catch(() => null),
+          api.getCategories().catch(() => null),
+          api.getCashMovements().catch(() => null),
+        ]);
+        if (dbProducts && Array.isArray(dbProducts)) dispatch({ type: 'SET_PRODUCTS', payload: dbProducts });
+        if (dbSales && Array.isArray(dbSales)) dispatch({ type: 'SET_SALES', payload: dbSales });
+        if (dbMovements && Array.isArray(dbMovements)) dispatch({ type: 'SET_MOVEMENTS', payload: dbMovements });
+        if (dbSuppliers && Array.isArray(dbSuppliers)) dispatch({ type: 'SET_SUPPLIERS', payload: dbSuppliers });
+        if (dbPurchases && Array.isArray(dbPurchases)) dispatch({ type: 'SET_PURCHASES', payload: dbPurchases });
+        if (dbCategories && Array.isArray(dbCategories) && dbCategories.length > 0) dispatch({ type: 'SET_CATEGORIES', payload: dbCategories });
+        if (dbCashMovements && Array.isArray(dbCashMovements)) {
+          const normalizedMoves = dbCashMovements.map(normalizeCashMovement).filter(Boolean);
+          dispatch({ type: 'SET_CASH_MOVEMENTS', payload: normalizedMoves });
+        }
+        return { success: true };
+      }
+    } catch (err) {
+      console.warn('Error al refrescar datos con backend:', err);
+    }
+    return { success: false };
+  };
+
+  // Comprobar estado del backend NestJS con reintento automático (para soportar arranque en frío de Render)
   useEffect(() => {
-    async function checkBackend() {
+    let isMounted = true;
+    let retryTimer = null;
+
+    async function checkBackend(retries = 0) {
       try {
         const online = await api.checkHealth();
+        if (!isMounted) return;
         setBackendOnline(online);
         if (online) {
           const [
@@ -801,6 +866,7 @@ export function AppProvider({ children }) {
             api.getCategories().catch(() => null),
             api.getCashMovements().catch(() => null),
           ]);
+          if (!isMounted) return;
           if (dbProducts && Array.isArray(dbProducts)) dispatch({ type: 'SET_PRODUCTS', payload: dbProducts });
           if (dbSales && Array.isArray(dbSales)) dispatch({ type: 'SET_SALES', payload: dbSales });
           if (dbMovements && Array.isArray(dbMovements)) dispatch({ type: 'SET_MOVEMENTS', payload: dbMovements });
@@ -817,13 +883,74 @@ export function AppProvider({ children }) {
             const normalizedMoves = dbCashMovements.map(normalizeCashMovement).filter(Boolean);
             dispatch({ type: 'SET_CASH_MOVEMENTS', payload: normalizedMoves });
           }
+        } else if (retries < 12) {
+          retryTimer = setTimeout(() => checkBackend(retries + 1), 3000);
         }
       } catch {
-        setBackendOnline(false);
+        if (isMounted) {
+          setBackendOnline(false);
+          if (retries < 12) {
+            retryTimer = setTimeout(() => checkBackend(retries + 1), 3000);
+          }
+        }
       }
     }
+
     checkBackend();
+
+    return () => {
+      isMounted = false;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, []);
+
+  // Regla de negocio: Cierre automático de caja después de las 7:00 PM (19:00 hrs)
+  useEffect(() => {
+    const handle7pmAutoClose = async () => {
+      const now = new Date();
+      if (now.getHours() >= 19) {
+        const todayMoves = (state.cashMovements || []).filter(m => {
+          try {
+            const d = new Date(m.date);
+            return (
+              d.getFullYear() === now.getFullYear() &&
+              d.getMonth() === now.getMonth() &&
+              d.getDate() === now.getDate()
+            );
+          } catch {
+            return false;
+          }
+        });
+        const openings = todayMoves.filter(m => m.type === 'apertura');
+        const closings = todayMoves.filter(m => m.type === 'cierre');
+        const lastOp = openings.length > 0 ? openings[openings.length - 1] : null;
+        const lastCl = closings.length > 0 ? closings[closings.length - 1] : null;
+
+        if (lastOp) {
+          const opTime = new Date(lastOp.date);
+          const openedAfter7pm = opTime.getHours() >= 19;
+          const isClosed = lastCl && new Date(lastCl.date) >= opTime;
+
+          if (!openedAfter7pm && !isClosed) {
+            // Se abrió antes de las 7 PM y ya pasaron las 7 PM sin cerrar -> Auto-cierre
+            const cash = getCashBalance();
+            const expectedAmt = Number(cash.saldoEsperado) || 0;
+            await addCashMovement({
+              type: 'cierre',
+              category: 'Cierre de Caja',
+              description: 'Cierre automático de turno por horario (7:00 PM)',
+              amount: expectedAmt,
+              responsible: 'Sistema Automático (Regla 7:00 PM)',
+            });
+          }
+        }
+      }
+    };
+
+    handle7pmAutoClose();
+    const interval = setInterval(handle7pmAutoClose, 30000);
+    return () => clearInterval(interval);
+  }, [state.cashMovements]);
 
   // Sincronizar en localStorage como respaldo local
   useEffect(() => {
@@ -963,15 +1090,30 @@ export function AppProvider({ children }) {
     return formattedSale;
   };
 
-  const cancelSale = async (id) => {
+  const cancelSale = async (id, reason) => {
+    const canceller = currentUser?.name || currentUser?.username || 'Administración';
+    const cancelDate = new Date().toISOString();
     if (backendOnline) {
       try {
-        await api.cancelSale(id);
+        await api.cancelSale(id, reason, canceller);
+        // Sincronizar existencias, movimientos y ventas actualizadas del backend
+        const [updatedProds, updatedMoves, updatedSales] = await Promise.all([
+          api.getProducts().catch(() => null),
+          api.getMovements().catch(() => null),
+          api.getSales().catch(() => null),
+        ]);
+        if (updatedProds && Array.isArray(updatedProds)) dispatch({ type: 'SET_PRODUCTS', payload: updatedProds });
+        if (updatedMoves && Array.isArray(updatedMoves)) dispatch({ type: 'SET_MOVEMENTS', payload: updatedMoves });
+        if (updatedSales && Array.isArray(updatedSales)) dispatch({ type: 'SET_SALES', payload: updatedSales });
+        return;
       } catch (err) {
         console.warn('Fallo al cancelar en backend:', err);
       }
     }
-    dispatch({ type: 'CANCEL_SALE', payload: id });
+    dispatch({
+      type: 'CANCEL_SALE',
+      payload: { id, reason, cancelledBy: canceller, cancelledAt: cancelDate },
+    });
   };
 
   const addCashMovement = async (data) => {
@@ -1047,12 +1189,28 @@ export function AppProvider({ children }) {
     const lastOpening = openingsToday.length > 0 ? openingsToday[openingsToday.length - 1] : null;
     const lastClosing = closingsToday.length > 0 ? closingsToday[closingsToday.length - 1] : null;
 
+    // Regla de horario: Si son las 7:00 PM o más (19:00 hrs)
+    const isPast7pm = now.getHours() >= 19;
+    const openingDate = lastOpening ? new Date(lastOpening.date) : null;
+    const openedAfter7pm = openingDate ? openingDate.getHours() >= 19 && isToday(lastOpening.date) : false;
+
     // Determinar estado del turno de hoy: 'open' | 'closed' | 'unopened'
     let shiftStatus = 'unopened';
+    let autoClosedAt7pm = false;
+    let closingReason = null;
+
     if (lastOpening && (!lastClosing || new Date(lastOpening.date) >= new Date(lastClosing.date))) {
       shiftStatus = 'open';
     } else if (lastClosing && (!lastOpening || new Date(lastClosing.date) > new Date(lastOpening.date))) {
       shiftStatus = 'closed';
+      closingReason = lastClosing.description || 'Cierre registrado';
+    }
+
+    // Si estaba abierta pero fue abierta antes de las 7:00 PM y ya pasaron las 7:00 PM -> AUTO-CERRAR
+    if (shiftStatus === 'open' && isPast7pm && !openedAfter7pm) {
+      shiftStatus = 'closed';
+      autoClosedAt7pm = true;
+      closingReason = 'Cierre automático de turno por horario (7:00 PM)';
     }
 
     const isRegisterOpen = shiftStatus === 'open';
@@ -1111,6 +1269,10 @@ export function AppProvider({ children }) {
     return {
       shiftStatus, // 'open' | 'closed' | 'unopened'
       isRegisterOpen,
+      isPast7pm,
+      autoClosedAt7pm,
+      openedAfter7pm,
+      closingReason,
       lastOpening,
       lastClosing,
       shiftNumber: openingsToday.length || 1,
@@ -1398,6 +1560,7 @@ export function AppProvider({ children }) {
         suppliers: state.suppliers || initialSuppliers,
         purchases: state.purchases || initialPurchases,
         backendOnline,
+        refreshData,
         currentUser,
         login,
         logout,

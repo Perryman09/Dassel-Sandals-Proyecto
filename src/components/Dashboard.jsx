@@ -1,22 +1,142 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Package, DollarSign, TrendingUp, ShoppingCart,
-  AlertTriangle, Clock, Banknote, Sparkles, Layers
+  AlertTriangle, Clock, Banknote, Sparkles, Layers, Calendar
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDateTime } from '../utils/format';
 import { DailySalesChart, CategoryDonutChart } from './InteractiveCharts';
 import CashRegisterModal from './CashRegisterModal';
 
+const PERIOD_OPTIONS = [
+  { id: 'today', label: 'Hoy', days: 1 },
+  { id: '7d', label: '7 Días', days: 7 },
+  { id: '15d', label: '15 Días', days: 15 },
+  { id: '30d', label: '30 Días', days: 30 },
+  { id: 'all', label: 'Todo el Historial', days: null },
+];
+
 export default function Dashboard({ onNavigate }) {
   const { products, sales, categories, getStats, getCashBalance, isShoeCategory } = useApp();
+  const [selectedPeriod, setSelectedPeriod] = useState('30d');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [showCashModal, setShowCashModal] = useState(false);
+
   const stats = getStats();
   const cashInfo = getCashBalance();
 
-  const recentSales = [...sales]
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 5);
+  const isWithinPeriod = (dateValue) => {
+    if (!dateValue) return false;
+
+    if (selectedPeriod === 'custom' || dateFrom || dateTo) {
+      const dStr = String(dateValue).split('T')[0];
+      if (dateFrom && dStr < dateFrom) return false;
+      if (dateTo && dStr > dateTo) return false;
+      return true;
+    }
+
+    if (selectedPeriod === 'all') return true;
+
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+
+    if (selectedPeriod === 'today') {
+      if (String(dateValue).startsWith(todayStr)) return true;
+      const d = new Date(dateValue);
+      return (
+        d.getFullYear() === now.getFullYear() &&
+        d.getMonth() === now.getMonth() &&
+        d.getDate() === now.getDate()
+      );
+    }
+
+    const opt = PERIOD_OPTIONS.find(o => o.id === selectedPeriod);
+    if (!opt || !opt.days) return true;
+
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (opt.days - 1), 0, 0, 0, 0);
+    const itemDate = new Date(dateValue);
+    return itemDate >= start && itemDate <= now;
+  };
+
+  const currentPeriodLabel = useMemo(() => {
+    if (dateFrom || dateTo) {
+      if (dateFrom && dateTo) return `${dateFrom} al ${dateTo}`;
+      if (dateFrom) return `Desde ${dateFrom}`;
+      return `Hasta ${dateTo}`;
+    }
+    return PERIOD_OPTIONS.find(o => o.id === selectedPeriod)?.label || 'Periodo Personalizado';
+  }, [selectedPeriod, dateFrom, dateTo]);
+
+  const periodSales = useMemo(
+    () => (sales || []).filter(s => isWithinPeriod(s.date)),
+    [sales, selectedPeriod, dateFrom, dateTo]
+  );
+
+  const recentSales = useMemo(
+    () => [...periodSales].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5),
+    [periodSales]
+  );
+
+  // Métricas financieras calculadas según el periodo seleccionado o rango personalizado
+  const {
+    periodRevenue,
+    periodProfit,
+    periodSalesCount,
+    periodMargin,
+    zapRevenue,
+    joyRevenue,
+    zapUnits,
+    joyUnits,
+  } = useMemo(() => {
+    let rev = 0;
+    let cost = 0;
+    let count = 0;
+    let zapRev = 0;
+    let joyRev = 0;
+    let zapU = 0;
+    let joyU = 0;
+
+    const completed = periodSales.filter(s => s.status === 'completed');
+    count = completed.length;
+
+    completed.forEach(s => {
+      rev += Number(s.total) || 0;
+      (s.items || []).forEach(it => {
+        const prod = products.find(p => p.id === it.productId);
+        const qty = Number(it.quantity) || 1;
+        const unitCost = Number(it.costPrice) || (prod ? Number(prod.costPrice) : Number(it.price) * 0.5);
+        cost += unitCost * qty;
+
+        const isShoe = prod
+          ? isShoeCategory(prod.category, categories)
+          : String(it.productCode || '').startsWith('DS-ZAP') || Boolean(it.size);
+        const itemSub = Number(it.subtotal) || Number(it.price) * qty;
+
+        if (isShoe) {
+          zapRev += itemSub;
+          zapU += qty;
+        } else {
+          joyRev += itemSub;
+          joyU += qty;
+        }
+      });
+    });
+
+    const profit = Math.max(0, rev - cost);
+    const margin = rev > 0 ? Math.round((profit / rev) * 100) : 0;
+
+    return {
+      periodRevenue: rev,
+      periodProfit: profit,
+      periodSalesCount: count,
+      periodMargin: margin,
+      zapRevenue: zapRev,
+      joyRevenue: joyRev,
+      zapUnits: zapU,
+      joyUnits: joyU,
+    };
+  }, [periodSales, products, categories, isShoeCategory]);
 
   const kpis = [
     {
@@ -36,17 +156,17 @@ export default function Dashboard({ onNavigate }) {
       bg: 'var(--success-bg)',
     },
     {
-      label: 'Ventas del Mes',
-      value: stats.monthSalesCount || 0,
+      label: `Ventas (${currentPeriodLabel})`,
+      value: periodSalesCount,
       sub: `Hoy: ${stats.todaySalesCount || 0} ventas`,
       Icon: ShoppingCart,
       color: 'var(--accent)',
       bg: 'var(--accent-bg)',
     },
     {
-      label: 'Ingresos del Mes',
-      value: formatCurrency(stats.monthRevenue),
-      sub: `Ganancia estimada: ${formatCurrency(stats.monthProfit)} (${stats.profitMargin}%)`,
+      label: `Ingresos (${currentPeriodLabel})`,
+      value: formatCurrency(periodRevenue),
+      sub: `Ganancia estimada: ${formatCurrency(periodProfit)} (${periodMargin}%)`,
       Icon: TrendingUp,
       color: '#a78bfa',
       bg: 'rgba(167,139,250,0.1)',
@@ -54,32 +174,6 @@ export default function Dashboard({ onNavigate }) {
   ];
 
   const alerts = [...(stats.outOfStockProducts || []), ...(stats.lowStockProducts || [])];
-
-  // Ventas agrupadas por categoría para la gráfica
-  let zapRevenue = 0;
-  let joyRevenue = 0;
-  let zapUnits = 0;
-  let joyUnits = 0;
-
-  sales
-    .filter(s => s.status === 'completed')
-    .forEach(s => {
-      (s.items || []).forEach(it => {
-        const prod = products.find(p => p.id === it.productId);
-        const isShoe = prod
-          ? isShoeCategory(prod.category, categories)
-          : String(it.productCode || '').startsWith('DS-ZAP') || Boolean(it.size);
-        const itemSub = Number(it.subtotal) || Number(it.price) * Number(it.quantity);
-        if (isShoe) {
-          zapRevenue += itemSub;
-          zapUnits += Number(it.quantity);
-        } else {
-          joyRevenue += itemSub;
-          joyUnits += Number(it.quantity);
-        }
-      });
-    });
-
   const shoeProducts = products.filter(p => isShoeCategory(p.category, categories));
   const jewelryProducts = products.filter(p => !isShoeCategory(p.category, categories));
 
@@ -137,6 +231,110 @@ export default function Dashboard({ onNavigate }) {
         </div>
       </div>
 
+      {/* BARRA DE CLASIFICACIÓN POR PERIODO Y RANGO DE FECHAS */}
+      <div
+        className="dash-card"
+        style={{
+          marginBottom: 20,
+          padding: '14px 18px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Calendar size={18} color="var(--accent)" />
+            <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>
+              Periodo:
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: 'inline-flex',
+              background: 'var(--bg-primary)',
+              padding: 4,
+              borderRadius: 10,
+              border: '1px solid var(--border)',
+              gap: 6,
+              flexWrap: 'wrap',
+            }}
+          >
+            {PERIOD_OPTIONS.map(opt => {
+              const isActive = selectedPeriod === opt.id && !dateFrom && !dateTo;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedPeriod(opt.id);
+                    setDateFrom('');
+                    setDateTo('');
+                  }}
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: 8,
+                    border: 'none',
+                    fontSize: '0.84rem',
+                    fontWeight: isActive ? 700 : 500,
+                    background: isActive ? 'var(--accent)' : 'transparent',
+                    color: isActive ? '#0f172a' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.18s ease',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Rango de Fechas Personalizado */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div className="date-filter" style={{ margin: 0 }}>
+            <Calendar size={16} />
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => {
+                setDateFrom(e.target.value);
+                setSelectedPeriod('custom');
+              }}
+              title="Fecha inicial"
+            />
+            <span>hasta</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => {
+                setDateTo(e.target.value);
+                setSelectedPeriod('custom');
+              }}
+              title="Fecha final"
+            />
+          </div>
+          {(dateFrom || dateTo) && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                setDateFrom('');
+                setDateTo('');
+                setSelectedPeriod('30d');
+              }}
+              style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+              title="Restablecer fechas"
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* KPI CARDS */}
       <div className="kpi-grid">
         {kpis.map(({ label, value, sub, Icon, color, bg }) => (
@@ -158,10 +356,16 @@ export default function Dashboard({ onNavigate }) {
         <div className="dash-card flex-2">
           <div className="dash-card-header">
             <h3>
-              <TrendingUp size={18} color="var(--accent)" /> Panel &amp; Gráfica de Ventas (Diarias, Semanales, Quincenales y Mensuales)
+              <TrendingUp size={18} color="var(--accent)" /> Tendencia de Ventas — <span style={{ color: 'var(--accent)' }}>{currentPeriodLabel}</span>
             </h3>
           </div>
-          <DailySalesChart sales={sales} />
+          <DailySalesChart
+            sales={sales}
+            selectedPeriod={selectedPeriod}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            periodLabel={currentPeriodLabel}
+          />
         </div>
 
         <div className="dash-card flex-1">
@@ -187,7 +391,7 @@ export default function Dashboard({ onNavigate }) {
             </button>
           </div>
           {alerts.length === 0 ? (
-            <p className="empty-msg">✅ Todo el inventario está en niveles óptimos</p>
+            <p className="empty-msg">Todo el inventario está en niveles óptimos</p>
           ) : (
             <div className="table-wrapper">
               <table className="table">
@@ -235,13 +439,13 @@ export default function Dashboard({ onNavigate }) {
         {/* Ventas Recientes */}
         <div className="dash-card">
           <div className="dash-card-header">
-            <h3><Clock size={18} color="var(--accent)" /> Últimas Ventas</h3>
+            <h3><Clock size={18} color="var(--accent)" /> Últimas Ventas ({currentPeriodLabel})</h3>
             <button className="link-btn" onClick={() => onNavigate('sales')}>
               Ver Historial
             </button>
           </div>
           {recentSales.length === 0 ? (
-            <p className="empty-msg">No se han registrado ventas aún</p>
+            <p className="empty-msg">No se han registrado ventas en este periodo</p>
           ) : (
             <div className="table-wrapper">
               <table className="table">
@@ -282,7 +486,9 @@ export default function Dashboard({ onNavigate }) {
           <div className="category-summary">
             <div className="category-block">
               <div className="cat-header">
-                <span className="cat-emoji">👠</span>
+                <span className="cat-icon-badge" style={{ display: 'inline-flex', padding: 8, background: 'var(--accent-bg)', borderRadius: 8 }}>
+                  <Layers size={22} color="var(--accent)" />
+                </span>
                 <div>
                   <h4>Calzado &amp; Sandalias</h4>
                   <small style={{ color: 'var(--text-muted)' }}>Huaraches, Plataformas, Tacones, Flats con matriz de tallas</small>
@@ -310,7 +516,9 @@ export default function Dashboard({ onNavigate }) {
 
             <div className="category-block">
               <div className="cat-header">
-                <span className="cat-emoji">💎</span>
+                <span className="cat-icon-badge" style={{ display: 'inline-flex', padding: 8, background: 'rgba(192, 132, 252, 0.12)', borderRadius: 8 }}>
+                  <Sparkles size={22} color="#c084fc" />
+                </span>
                 <div>
                   <h4>Joyería &amp; Accesorios</h4>
                   <small style={{ color: 'var(--text-muted)' }}>Collares, Aretes, Pulseras, Anillos</small>

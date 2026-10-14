@@ -24,7 +24,7 @@ export default function BarcodeModal({ product, onClose }) {
           <div className="product-tag-card" id="printable-tag">
             <div className="tag-brand">DASSEL SANDALS</div>
             <div className="tag-category">
-              {product.category === 'zapatos' ? '👡 CALZADO' : '💎 JOYERÍA'} — {product.subcategory}
+              {product.category === 'zapatos' ? 'CALZADO' : 'JOYERÍA'} — {product.subcategory}
             </div>
 
             <h3 className="tag-title">{product.name}</h3>

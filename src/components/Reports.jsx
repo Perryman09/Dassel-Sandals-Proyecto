@@ -30,12 +30,23 @@ export default function Reports() {
   } = useApp();
 
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [expenseTypeFilter, setExpenseTypeFilter] = useState('all'); // 'all' | 'operativos' | 'compras'
   const [showCashModal, setShowCashModal] = useState(false);
 
-  // Función auxiliar para verificar si una fecha entra en el periodo seleccionado
+  // Función auxiliar para verificar si una fecha entra en el periodo seleccionado o rango personalizado
   const isWithinPeriod = (dateValue) => {
     if (!dateValue) return false;
+
+    // Si hay fechas personalizadas definidas o se seleccionó 'custom'
+    if (selectedPeriod === 'custom' || dateFrom || dateTo) {
+      const dStr = String(dateValue).split('T')[0];
+      if (dateFrom && dStr < dateFrom) return false;
+      if (dateTo && dStr > dateTo) return false;
+      return true;
+    }
+
     if (selectedPeriod === 'all') return true;
 
     const now = new Date();
@@ -61,7 +72,7 @@ export default function Reports() {
 
   const completedSales = useMemo(
     () => (sales || []).filter(s => s.status === 'completed' && isWithinPeriod(s.date)),
-    [sales, selectedPeriod]
+    [sales, selectedPeriod, dateFrom, dateTo]
   );
 
   // Total ingresos y costos en el periodo seleccionado
@@ -172,7 +183,7 @@ export default function Reports() {
       operatingCount: operatingMovements.length,
       purchasesCount: periodPurchases.length,
     };
-  }, [cashMovements, purchases, selectedPeriod, totalProfit]);
+  }, [cashMovements, purchases, selectedPeriod, dateFrom, dateTo, totalProfit]);
 
   const filteredExpenseList = useMemo(() => {
     if (expenseTypeFilter === 'all') return expensesData.unifiedList;
@@ -242,8 +253,14 @@ export default function Reports() {
     };
   }, [completedSales, products, categories, isShoeCategory]);
 
-  const currentPeriodLabel =
-    PERIOD_OPTIONS.find(o => o.id === selectedPeriod)?.label || 'Periodo Seleccionado';
+  const currentPeriodLabel = useMemo(() => {
+    if (dateFrom || dateTo) {
+      if (dateFrom && dateTo) return `${dateFrom} al ${dateTo}`;
+      if (dateFrom) return `Desde ${dateFrom}`;
+      return `Hasta ${dateTo}`;
+    }
+    return PERIOD_OPTIONS.find(o => o.id === selectedPeriod)?.label || 'Periodo Personalizado';
+  }, [selectedPeriod, dateFrom, dateTo]);
 
   return (
     <div className="page">
@@ -265,7 +282,7 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* BARRA DE CLASIFICACIÓN POR PERIODO (HOY, 7 DÍAS, 15 DÍAS, 30 DÍAS, TODO) */}
+      {/* BARRA DE CLASIFICACIÓN POR PERIODO Y RANGO DE FECHAS */}
       <div
         className="dash-card"
         style={{
@@ -278,44 +295,94 @@ export default function Reports() {
           gap: 12,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Calendar size={18} color="var(--accent)" />
-          <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>
-            Clasificar todos los datos financieros por periodo:
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Calendar size={18} color="var(--accent)" />
+            <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>
+              Periodo:
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: 'inline-flex',
+              background: 'var(--bg-primary)',
+              padding: 4,
+              borderRadius: 10,
+              border: '1px solid var(--border)',
+              gap: 6,
+              flexWrap: 'wrap',
+            }}
+          >
+            {PERIOD_OPTIONS.map(opt => {
+              const isActive = selectedPeriod === opt.id && !dateFrom && !dateTo;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedPeriod(opt.id);
+                    setDateFrom('');
+                    setDateTo('');
+                  }}
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: 8,
+                    border: 'none',
+                    fontSize: '0.84rem',
+                    fontWeight: isActive ? 700 : 500,
+                    background: isActive ? 'var(--accent)' : 'transparent',
+                    color: isActive ? '#0f172a' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.18s ease',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        <div
-          style={{
-            display: 'inline-flex',
-            background: 'var(--bg-primary)',
-            padding: 4,
-            borderRadius: 10,
-            border: '1px solid var(--border)',
-            gap: 6,
-            flexWrap: 'wrap',
-          }}
-        >
-          {PERIOD_OPTIONS.map(opt => (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => setSelectedPeriod(opt.id)}
-              style={{
-                padding: '7px 14px',
-                borderRadius: 8,
-                border: 'none',
-                fontSize: '0.84rem',
-                fontWeight: selectedPeriod === opt.id ? 700 : 500,
-                background: selectedPeriod === opt.id ? 'var(--accent)' : 'transparent',
-                color: selectedPeriod === opt.id ? '#0f172a' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                transition: 'all 0.18s ease',
+        {/* Rango de Fechas Personalizado */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div className="date-filter" style={{ margin: 0 }}>
+            <Calendar size={16} />
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => {
+                setDateFrom(e.target.value);
+                setSelectedPeriod('custom');
               }}
+              title="Fecha inicial"
+            />
+            <span>hasta</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => {
+                setDateTo(e.target.value);
+                setSelectedPeriod('custom');
+              }}
+              title="Fecha final"
+            />
+          </div>
+          {(dateFrom || dateTo) && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                setDateFrom('');
+                setDateTo('');
+                setSelectedPeriod('30d');
+              }}
+              style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+              title="Restablecer fechas"
             >
-              {opt.label}
+              Limpiar
             </button>
-          ))}
+          )}
         </div>
       </div>
 
@@ -442,7 +509,7 @@ export default function Reports() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '10px 0' }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span>👠 Calzado &amp; Sandalias: <strong>{categoryBreakdown.zapatos.units} pzas</strong></span>
+                <span>Calzado &amp; Sandalias: <strong>{categoryBreakdown.zapatos.units} pzas</strong></span>
                 <span style={{ fontWeight: 600 }}>{formatCurrency(categoryBreakdown.zapatos.revenue)} ({categoryBreakdown.zapatos.pct}%)</span>
               </div>
               <div style={{ width: '100%', height: 12, background: 'rgba(255,255,255,0.08)', borderRadius: 6, overflow: 'hidden' }}>
@@ -452,7 +519,7 @@ export default function Reports() {
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span>💎 Joyería &amp; Accesorios: <strong>{categoryBreakdown.joyas.units} pzas</strong></span>
+                <span>Joyería &amp; Accesorios: <strong>{categoryBreakdown.joyas.units} pzas</strong></span>
                 <span style={{ fontWeight: 600 }}>{formatCurrency(categoryBreakdown.joyas.revenue)} ({categoryBreakdown.joyas.pct}%)</span>
               </div>
               <div style={{ width: '100%', height: 12, background: 'rgba(255,255,255,0.08)', borderRadius: 6, overflow: 'hidden' }}>

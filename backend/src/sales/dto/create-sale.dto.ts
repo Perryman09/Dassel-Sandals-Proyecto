@@ -34,6 +34,10 @@ export class CreateSaleItemDto {
   @IsString()
   @IsOptional()
   selectedSize?: string;
+
+  @IsString()
+  @IsOptional()
+  color?: string;
 }
 
 export class CreateSaleDto {

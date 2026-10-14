@@ -6,7 +6,6 @@ export const THEMES = {
   amber: {
     id: 'amber',
     name: 'Dorado Ámbar (Original)',
-    emoji: '🌟',
     primary: '#f59e0b',
     hover: '#d97706',
     light: '#fbbf24',
@@ -17,7 +16,6 @@ export const THEMES = {
   rose: {
     id: 'rose',
     name: 'Rosa Coral Boutique',
-    emoji: '🌸',
     primary: '#ec4899',
     hover: '#db2777',
     light: '#f472b6',
@@ -28,7 +26,6 @@ export const THEMES = {
   emerald: {
     id: 'emerald',
     name: 'Verde Esmeralda Fina',
-    emoji: '🌿',
     primary: '#10b981',
     hover: '#059669',
     light: '#34d399',
@@ -39,7 +36,6 @@ export const THEMES = {
   sapphire: {
     id: 'sapphire',
     name: 'Azul Zafiro Elegante',
-    emoji: '💎',
     primary: '#3b82f6',
     hover: '#2563eb',
     light: '#60a5fa',
@@ -50,7 +46,6 @@ export const THEMES = {
   amethyst: {
     id: 'amethyst',
     name: 'Púrpura Amatista Joya',
-    emoji: '💜',
     primary: '#8b5cf6',
     hover: '#7c3aed',
     light: '#a78bfa',
@@ -61,7 +56,6 @@ export const THEMES = {
   terracotta: {
     id: 'terracotta',
     name: 'Terracota Cuero Artesano',
-    emoji: '👡',
     primary: '#ea580c',
     hover: '#c2410c',
     light: '#fb923c',

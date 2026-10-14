@@ -39,9 +39,9 @@ export default function MovementsModal({ onClose }) {
             </div>
             <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
               <option value="all">Todos los tipos</option>
-              <option value="entrada">🟢 Entradas (Compras/Devoluciones)</option>
-              <option value="salida">🔴 Salidas (Ventas/Mermas)</option>
-              <option value="ajuste">🟡 Ajustes de conteo</option>
+              <option value="entrada">Entradas (Compras/Devoluciones)</option>
+              <option value="salida">Salidas (Ventas/Mermas)</option>
+              <option value="ajuste">Ajustes de conteo</option>
             </select>
           </div>
 

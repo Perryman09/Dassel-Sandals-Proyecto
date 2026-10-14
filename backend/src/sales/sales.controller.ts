@@ -48,7 +48,10 @@ export class SalesController {
   }
 
   @Patch(':id/cancel')
-  cancelSale(@Param('id', ParseIntPipe) id: number) {
-    return this.salesService.cancelSale(id);
+  cancelSale(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body?: { reason?: string; cancelledBy?: string },
+  ) {
+    return this.salesService.cancelSale(id, body?.reason, body?.cancelledBy);
   }
 }

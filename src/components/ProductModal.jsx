@@ -198,7 +198,7 @@ export default function ProductModal({ product, onClose, onSaved }) {
               {!isEdit && (
                 <div className="form-row info-banner">
                   <p>
-                    📋 Folio automático: <strong>{getNextCode(form.category)}</strong> · Moneda oficial: <strong>Córdobas (C$)</strong>
+                    Folio automático: <strong>{getNextCode(form.category)}</strong> · Moneda oficial: <strong>Córdobas (C$)</strong>
                   </p>
                 </div>
               )}
@@ -238,7 +238,7 @@ export default function ProductModal({ product, onClose, onSaved }) {
                   <select value={form.category} onChange={e => set('category', e.target.value)}>
                     {categories.map(c => (
                       <option key={c.id} value={c.id}>
-                        {c.icon || '📁'} {c.name}
+                        {c.name}
                       </option>
                     ))}
                   </select>
@@ -280,14 +280,14 @@ export default function ProductModal({ product, onClose, onSaved }) {
                         className={`size-sys-btn ${sizeSystem === 'eur' ? 'active' : ''}`}
                         onClick={() => setSizeSystem('eur')}
                       >
-                        👠 Tacones EUR (35 al 42)
+                        Tacones EUR (35 al 42)
                       </button>
                       <button
                         type="button"
                         className={`size-sys-btn ${sizeSystem === 'us' ? 'active' : ''}`}
                         onClick={() => setSizeSystem('us')}
                       >
-                        👟 US (4 al 11)
+                        Calzado US (4 al 11)
                       </button>
                       <button
                         type="button"
@@ -304,7 +304,7 @@ export default function ProductModal({ product, onClose, onSaved }) {
                   </div>
 
                   <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
-                    💡 <em>Tacones y plataformas importados usan EUR (35 al 42). Sandalias planas y calzado US usan 4 al 11.</em>
+                    <em>Tacones y plataformas importados usan EUR (35 al 42). Sandalias planas y calzado US usan 4 al 11.</em>
                   </p>
 
                   <div className="shoe-sizes-matrix-grid">

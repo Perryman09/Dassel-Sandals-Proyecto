@@ -2,14 +2,14 @@ import { useState } from 'react';
 import {
   Search, Eye, XCircle, FileText, Calendar, Filter,
   ChevronLeft, ChevronRight, X, ShoppingCart, Download,
-  Printer, Phone, User
+  Printer, Phone, User, RefreshCw, CheckCircle2, AlertTriangle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDateTime } from '../utils/format';
 import ReceiptModal from './ReceiptModal';
 
 export default function Sales() {
-  const { sales, cancelSale, exportSalesCSV, products, isShoeCategory } = useApp();
+  const { sales, cancelSale, exportSalesCSV, products, isShoeCategory, refreshData, backendOnline } = useApp();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [payFilter, setPayFilter] = useState('all');
@@ -18,8 +18,21 @@ export default function Sales() {
   const [detailSale, setDetailSale] = useState(null);
   const [ticketSale, setTicketSale] = useState(null);
   const [cancelConfirm, setCancelConfirm] = useState(null);
+  const [cancelReasonPreset, setCancelReasonPreset] = useState('Devolución o cambio de talla / producto');
+  const [cancelNotes, setCancelNotes] = useState('');
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const perPage = 10;
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshData();
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500);
+    }
+  };
 
   const formatSizeDisplay = (sz) => {
     if (!sz) return '';
@@ -69,11 +82,31 @@ export default function Sales() {
 
   const totalRevenue = filtered.filter(s => s.status === 'completed').reduce((s, v) => s + v.total, 0);
 
-  const handleCancel = (id) => {
-    cancelSale(id);
-    setCancelConfirm(null);
-    if (detailSale && detailSale.id === id) {
-      setDetailSale(prev => ({ ...prev, status: 'cancelled' }));
+  const handleOpenCancelModal = (sale) => {
+    setCancelConfirm(sale);
+    setCancelReasonPreset('Devolución o cambio de talla / producto');
+    setCancelNotes('');
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelConfirm) return;
+    setIsCancelling(true);
+    try {
+      const finalReason = cancelNotes.trim()
+        ? `${cancelReasonPreset}: ${cancelNotes.trim()}`
+        : cancelReasonPreset;
+      await cancelSale(cancelConfirm.id, finalReason);
+      if (detailSale && detailSale.id === cancelConfirm.id) {
+        setDetailSale(prev => ({
+          ...prev,
+          status: 'cancelled',
+          cancelReason: finalReason,
+          cancelledAt: new Date().toISOString(),
+        }));
+      }
+      setCancelConfirm(null);
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -87,11 +120,41 @@ export default function Sales() {
             <strong style={{ color: 'var(--success)' }}>{formatCurrency(totalRevenue)}</strong>
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Sincronizar y recargar ventas desde la base de datos Supabase"
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <RefreshCw size={16} className={isRefreshing ? 'spin-icon' : ''} />
+            {isRefreshing ? 'Sincronizando...' : 'Actualizar Ventas'}
+          </button>
           <button className="btn btn-ghost" onClick={exportSalesCSV}>
             <Download size={16} /> Exportar CSV
           </button>
         </div>
+      </div>
+
+      {/* Pestañas Rápidas de Clasificación por Estado */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        {[
+          { id: 'all', label: `Todas las Ventas (${sales.length})` },
+          { id: 'completed', label: `Completadas (${sales.filter(s => s.status === 'completed').length})` },
+          { id: 'cancelled', label: `Canceladas / Anuladas (${sales.filter(s => s.status === 'cancelled').length})` },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            className={`btn btn-sm ${statusFilter === tab.id ? 'btn-primary' : 'btn-ghost'}`}
+            style={statusFilter === tab.id ? { fontWeight: 700 } : {}}
+            onClick={() => { setStatusFilter(tab.id); setPage(1); }}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Filtros */}
@@ -112,14 +175,12 @@ export default function Sales() {
         </div>
         <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
           <option value="all">Todos los estados</option>
-          <option value="completed">✅ Completada</option>
-          <option value="cancelled">❌ Cancelada</option>
-        </select>
+           </select>
         <select value={payFilter} onChange={e => { setPayFilter(e.target.value); setPage(1); }}>
           <option value="all">Todas las formas de pago</option>
-          <option value="Efectivo">💵 Efectivo</option>
-          <option value="Tarjeta">💳 Tarjeta</option>
-          <option value="Transferencia">🏦 Transferencia</option>
+          <option value="Efectivo">Efectivo</option>
+          <option value="Tarjeta">Tarjeta</option>
+          <option value="Transferencia">Transferencia</option>
         </select>
       </div>
 
@@ -161,6 +222,23 @@ export default function Sales() {
                     <span className={`badge ${s.status === 'completed' ? 'badge-success' : 'badge-danger'}`}>
                       {s.status === 'completed' ? 'Completada' : 'Cancelada'}
                     </span>
+                    {s.status === 'cancelled' && s.cancelReason && (
+                      <small
+                        style={{
+                          display: 'block',
+                          color: '#f87171',
+                          fontSize: '0.72rem',
+                          marginTop: 3,
+                          maxWidth: 160,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                        title={s.cancelReason}
+                      >
+                        {s.cancelReason}
+                      </small>
+                    )}
                   </td>
                   <td>
                     <div className="action-btns" style={{ justifyContent: 'center' }}>
@@ -181,8 +259,8 @@ export default function Sales() {
                       {s.status === 'completed' && (
                         <button
                           className="icon-btn danger"
-                          title="Cancelar venta y reintegrar stock"
-                          onClick={() => setCancelConfirm(s)}
+                          title="Cancelar venta y reintegrar stock a inventario"
+                          onClick={() => handleOpenCancelModal(s)}
                         >
                           <XCircle size={16} />
                         </button>
@@ -226,6 +304,41 @@ export default function Sales() {
               <button className="icon-btn" onClick={() => setDetailSale(null)}><X size={20} /></button>
             </div>
             <div className="modal-body">
+              {detailSale.status === 'cancelled' && (
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  borderRadius: 8,
+                  padding: '12px 16px',
+                  marginBottom: 16,
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 12,
+                }}>
+                  <XCircle size={22} color="var(--danger)" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <div>
+                    <strong style={{ color: '#f87171', display: 'block', fontSize: '0.98rem' }}>
+                      VENTA CANCELADA / ANULADA
+                    </strong>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Esta transacción fue anulada en el sistema. Los artículos y matriz de tallas fueron reincorporados al inventario.
+                    </p>
+                    {detailSale.cancelReason && (
+                      <div style={{ marginTop: 6, fontSize: '0.85rem' }}>
+                        <strong>Motivo de anulación:</strong>{' '}
+                        <span style={{ color: 'var(--text-primary)' }}>{detailSale.cancelReason}</span>
+                      </div>
+                    )}
+                    {detailSale.cancelledAt && (
+                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                        Fecha de anulación: {formatDateTime(detailSale.cancelledAt)}
+                        {detailSale.cancelledBy ? ` · Responsable: ${detailSale.cancelledBy}` : ''}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="sale-detail-info">
                 <div><strong>Cliente:</strong> {detailSale.customerName}</div>
                 {detailSale.customerPhone && <div><strong>Teléfono:</strong> {detailSale.customerPhone}</div>}
@@ -255,16 +368,24 @@ export default function Sales() {
                       const prodObj = products.find(p => p.id === item.productId || p.code === item.productCode);
                       const isShoe = item.selectedSize || (prodObj && isShoeCategory(prodObj)) || String(item.productCode || '').startsWith('DS-ZAP');
                       const sizeText = item.selectedSize || (isShoe && prodObj?.size ? prodObj.size : '');
+                      const colorText = item.color || prodObj?.color || '';
                       return (
                         <tr key={i}>
                           <td><code>{item.productCode}</code></td>
                           <td>
                             <strong>{item.productName}</strong>
-                            {sizeText && (
-                              <div style={{ fontSize: '0.76rem', color: 'var(--accent-light)', marginTop: 2 }}>
-                                👠 Talla: <strong>{item.selectedSize ? formatSizeDisplay(item.selectedSize) : sizeText}</strong>
-                              </div>
-                            )}
+                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 2 }}>
+                              {sizeText && (
+                                <span style={{ fontSize: '0.76rem', color: 'var(--accent-light)' }}>
+                                  Talla: <strong>{item.selectedSize ? formatSizeDisplay(item.selectedSize) : sizeText}</strong>
+                                </span>
+                              )}
+                              {colorText && (
+                                <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                                  Color: <strong>{colorText}</strong>
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td>{formatCurrency(item.price)}</td>
                           <td>
@@ -275,6 +396,11 @@ export default function Sales() {
                               {sizeText && (
                                 <span className="badge badge-sm badge-info" style={{ fontWeight: 700 }}>
                                   Talla {item.selectedSize ? formatSizeDisplay(item.selectedSize) : sizeText}
+                                </span>
+                              )}
+                              {colorText && (
+                                <span className="badge badge-sm badge-secondary" style={{ fontWeight: 700 }}>
+                                  Color: {colorText}
                                 </span>
                               )}
                             </div>
@@ -301,7 +427,7 @@ export default function Sales() {
 
                     {discInfo.wholesaleAmt > 0 && (
                       <div className="cart-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.92rem', color: 'var(--accent-light)' }}>
-                        <span>✨ Descuento al Mayoreo ({discInfo.wholesalePct}%):</span>
+                        <span>Descuento al Mayoreo ({discInfo.wholesalePct}%):</span>
                         <strong style={{ color: 'var(--danger)' }}>-{formatCurrency(discInfo.wholesaleAmt)}</strong>
                       </div>
                     )}
@@ -330,11 +456,11 @@ export default function Sales() {
                     {detailSale.paymentMethod === 'Efectivo' && (
                       <div style={{ borderTop: '1px dashed var(--border)', paddingTop: 10, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.92rem' }}>
-                          <span style={{ color: 'var(--text-secondary)' }}>💵 Efectivo Recibido del Cliente:</span>
+                          <span style={{ color: 'var(--text-secondary)' }}>Efectivo Recibido del Cliente:</span>
                           <strong style={{ color: 'var(--text-primary)' }}>{formatCurrency(receivedAmt)}</strong>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.95rem' }}>
-                          <span style={{ color: 'var(--success)', fontWeight: 600 }}>✅ Cambio / Vuelto Entregado:</span>
+                          <span style={{ color: 'var(--success)', fontWeight: 600 }}>Cambio / Vuelto Entregado:</span>
                           <strong style={{ color: 'var(--success)', fontSize: '1.05rem' }}>{formatCurrency(changeAmt)}</strong>
                         </div>
                       </div>
@@ -367,30 +493,96 @@ export default function Sales() {
         />
       )}
 
-      {/* Confirmar Cancelación */}
+      {/* Confirmar Cancelación con Motivo Auditado */}
       {cancelConfirm && (
-        <div className="modal-overlay" onClick={() => setCancelConfirm(null)}>
-          <div className="modal modal-sm" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => !isCancelling && setCancelConfirm(null)}>
+          <div className="modal modal-md" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2><XCircle size={20} color="var(--danger)" /> Cancelar Venta</h2>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#f87171' }}>
+                <XCircle size={22} color="var(--danger)" /> Cancelar y Anular Venta
+              </h2>
+              <button className="icon-btn" disabled={isCancelling} onClick={() => setCancelConfirm(null)}>
+                <X size={20} />
+              </button>
             </div>
             <div className="modal-body">
-              <p>¿Seguro que deseas cancelar la venta <strong>{cancelConfirm.saleNumber}</strong>?</p>
+              <p style={{ fontSize: '0.95rem', marginBottom: 12 }}>
+                ¿Confirmas la anulación de la venta <strong>{cancelConfirm.saleNumber}</strong> por un total de{' '}
+                <strong style={{ color: 'var(--accent-light)' }}>{formatCurrency(cancelConfirm.total)}</strong>?
+              </p>
+
               <div style={{
-                marginTop: 12,
                 padding: 12,
                 borderRadius: 8,
-                background: 'var(--warning-bg)',
-                color: 'var(--warning)',
-                fontSize: '0.85rem'
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                color: 'var(--accent-light)',
+                fontSize: '0.84rem',
+                marginBottom: 16,
+                lineHeight: 1.45,
               }}>
-                ⚠️ Los productos de esta venta ({cancelConfirm.items.reduce((s, i) => s + i.quantity, 0)} unidades)
-                se reincorporarán automáticamente al stock en inventario.
+                <strong>Reincorporación Automática al Stock:</strong> Las{' '}
+                {cancelConfirm.items.reduce((s, i) => s + i.quantity, 0)} piezas de calzado / joyas vendidas
+                serán devueltas inmediatamente al inventario (incluyendo el desglose exacto de tallas).
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 12 }}>
+                <label style={{ fontWeight: 700, fontSize: '0.84rem' }}>
+                  Motivo Principal de Cancelación *
+                </label>
+                <select
+                  value={cancelReasonPreset}
+                  onChange={e => setCancelReasonPreset(e.target.value)}
+                  style={{ width: '100%', padding: '10px' }}
+                >
+                  <option value="Devolución o cambio de talla / producto">Devolución o cambio de talla / producto</option>
+                  <option value="Error en método de cobro o monto incorrecto">Error en método de cobro o monto incorrecto</option>
+                  <option value="Cliente desistió de la compra">Cliente desistió de la compra</option>
+                  <option value="Producto con detalle o defecto de fábrica">Producto con detalle o defecto de fábrica</option>
+                  <option value="Venta de prueba / duplicada">Venta de prueba / duplicada</option>
+                  <option value="Otro motivo">Otro motivo</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label style={{ fontSize: '0.82rem' }}>
+                  Detalles u Observaciones Adicionales (Opcional):
+                </label>
+                <textarea
+                  rows={2}
+                  value={cancelNotes}
+                  onChange={e => setCancelNotes(e.target.value)}
+                  placeholder="Ej: Cliente solicitó cambio por otra talla / reingresado a estante..."
+                  style={{ width: '100%', resize: 'vertical' }}
+                />
               </div>
             </div>
             <div className="modal-actions">
-              <button className="btn btn-ghost" onClick={() => setCancelConfirm(null)}>No, regresar</button>
-              <button className="btn btn-danger" onClick={() => handleCancel(cancelConfirm.id)}>Sí, cancelar venta</button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={isCancelling}
+                onClick={() => setCancelConfirm(null)}
+              >
+                No, volver
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={isCancelling}
+                onClick={handleConfirmCancel}
+                style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}
+              >
+                {isCancelling ? (
+                  <>
+                    <RefreshCw size={16} className="spin-icon" /> Guardando en BD...
+                  </>
+                ) : (
+                  <>
+                    <XCircle size={16} /> Confirmar Anulación
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

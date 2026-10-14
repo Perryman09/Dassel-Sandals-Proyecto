@@ -3,16 +3,25 @@ import {
   Search, Plus, Minus, X, ShoppingCart, Trash2,
   CreditCard, Banknote, ArrowRightLeft, CheckCircle, User,
   Phone, Printer, Sparkles, Tag, Layers, AlertTriangle,
-  Calculator, RotateCcw, FileText, ArrowRight, ArrowLeft
+  Calculator, RotateCcw, FileText, ArrowRight, ArrowLeft,
+  Lock, Unlock, Delete
 } from 'lucide-react';
 import { useApp, getWholesaleTier, SHOE_SIZES_EUR, SHOE_SIZES_US } from '../context/AppContext';
 import { formatCurrency } from '../utils/format';
 import ReceiptModal from './ReceiptModal';
+import CashRegisterModal from './CashRegisterModal';
 
 export default function NewSale({ onNavigate }) {
-  const { products, addSale, getNextSaleNumber, categories, isShoeCategory, getCategoryInfo } = useApp();
+  const {
+    products, addSale, getNextSaleNumber, categories,
+    isShoeCategory, getCategoryInfo, getCashBalance,
+    addCashMovement, currentUser
+  } = useApp();
+  const cashInfo = getCashBalance();
+
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('all');
+  const [subcatFilter, setSubcatFilter] = useState('all');
   const [cart, setCart] = useState([]);
   const [discount, setDiscount] = useState('');
   const [applyWholesale, setApplyWholesale] = useState(true);
@@ -25,6 +34,12 @@ export default function NewSale({ onNavigate }) {
   const [completedSale, setCompletedSale] = useState(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showNumpad, setShowNumpad] = useState(true);
+
+  // Estados de control de apertura de caja
+  const [showCashRegisterModal, setShowCashRegisterModal] = useState(false);
+  const [showMustOpenCashModal, setShowMustOpenCashModal] = useState(false);
+  const [quickOpeningAmount, setQuickOpeningAmount] = useState('1000');
+  const [quickOpeningNotes, setQuickOpeningNotes] = useState('');
 
   // Vista de pantalla completa para procesar venta y cobro en la sección de ventas
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -47,9 +62,16 @@ export default function NewSale({ onNavigate }) {
       p.name.toLowerCase().includes(q) ||
       p.code.toLowerCase().includes(q) ||
       (p.color && p.color.toLowerCase().includes(q)) ||
-      (p.material && p.material.toLowerCase().includes(q));
+      (p.material && p.material.toLowerCase().includes(q)) ||
+      (p.subcategory && p.subcategory.toLowerCase().includes(q));
+
     const matchCat = catFilter === 'all' || p.category === catFilter;
-    return matchSearch && matchCat;
+    const matchSubcat =
+      catFilter === 'all' ||
+      subcatFilter === 'all' ||
+      (p.subcategory && p.subcategory.toLowerCase() === subcatFilter.toLowerCase());
+
+    return matchSearch && matchCat && matchSubcat;
   });
 
   const handleProductClick = (product) => {
@@ -91,6 +113,7 @@ export default function NewSale({ onNavigate }) {
           productCode: product.code,
           productName: product.name,
           selectedSize: selectedSize || '',
+          color: product.color || '',
           costPrice: Number(product.costPrice) || 0,
           price: unitPrice,
           quantity: 1,
@@ -198,16 +221,32 @@ export default function NewSale({ onNavigate }) {
     setCashReceived(String(amount));
   };
 
+  const handleProceedToCheckout = () => {
+    if (cart.length === 0) return;
+    const freshCash = getCashBalance();
+    if (!freshCash.isRegisterOpen) {
+      setShowMustOpenCashModal(true);
+      return;
+    }
+    setIsCheckingOut(true);
+  };
+
   const handleCompleteSale = () => {
     if (cart.length === 0) return;
 
+    const freshCash = getCashBalance();
+    if (!freshCash.isRegisterOpen) {
+      setShowMustOpenCashModal(true);
+      return;
+    }
+
     if (paymentMethod === 'Efectivo') {
       if (isCashEmpty) {
-        alert('⚠️ Monto requerido: Debes ingresar el monto de efectivo entregado por el cliente (o presionar el botón "Pago Exacto") antes de procesar el cobro.');
+        alert('Monto requerido: Debes ingresar el monto de efectivo entregado por el cliente (o presionar el botón "Pago Exacto") antes de procesar el cobro.');
         return;
       }
       if (isCashShort) {
-        alert(`⚠️ Monto insuficiente: El cliente entregó ${formatCurrency(receivedNum)}, pero el total es ${formatCurrency(total)}. Faltan ${formatCurrency(cashShortage)} para completar el cobro.`);
+        alert(`Monto insuficiente: El cliente entregó ${formatCurrency(receivedNum)}, pero el total es ${formatCurrency(total)}. Faltan ${formatCurrency(cashShortage)} para completar el cobro.`);
         return;
       }
     }
@@ -216,11 +255,12 @@ export default function NewSale({ onNavigate }) {
     const saleData = {
       saleNumber,
       date: new Date().toISOString(),
-      items: cart.map(({ productId, productCode, productName, selectedSize, costPrice, quantity, price, subtotal }) => ({
+      items: cart.map(({ productId, productCode, productName, selectedSize, color, costPrice, quantity, price, subtotal }) => ({
         productId,
         productCode,
         productName,
         selectedSize: selectedSize || '',
+        color: color || '',
         costPrice: Number(costPrice) || 0,
         quantity: Number(quantity) || 1,
         price: Number(price) || 0,
@@ -290,6 +330,126 @@ export default function NewSale({ onNavigate }) {
     );
   }
 
+  const renderMustOpenCashModal = () => {
+    if (!showMustOpenCashModal) return null;
+    return (
+      <div className="modal-overlay" onClick={() => setShowMustOpenCashModal(false)}>
+        <div className="modal modal-md" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#f87171' }}>
+              <Lock size={22} color="var(--danger)" /> Apertura de Caja Requerida
+            </h2>
+            <button className="icon-btn" onClick={() => setShowMustOpenCashModal(false)}>
+              <X size={20} />
+            </button>
+          </div>
+          <div className="modal-body">
+            <div style={{
+              padding: 14,
+              borderRadius: 8,
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              marginBottom: 16,
+              fontSize: '0.9rem',
+              lineHeight: 1.5,
+            }}>
+              {cashInfo.autoClosedAt7pm ? (
+                <p style={{ margin: 0 }}>
+                  <strong>Cierre automático después de las 7:00 PM:</strong> Por regla de horario de la boutique, la caja se cerró automáticamente a las 19:00 hrs. Si necesitas realizar una venta extraordinaria, es obligatorio abrir un turno de caja nocturno.
+                </p>
+              ) : cashInfo.shiftStatus === 'closed' ? (
+                <p style={{ margin: 0 }}>
+                  <strong>Caja de hoy cerrada:</strong> El turno anterior fue cerrado con arqueo. Para registrar y cobrar nuevas ventas debes iniciar un nuevo turno de caja.
+                </p>
+              ) : (
+                <p style={{ margin: 0 }}>
+                  <strong>Caja sin apertura:</strong> No es posible facturar o cobrar ventas sin antes haber registrado la apertura de caja e ingresado el fondo de sencillo en el cajón.
+                </p>
+              )}
+            </div>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const amt = Number(quickOpeningAmount) || 0;
+              const shiftLabel = `Turno #${(cashInfo.shiftNumber || 1) + (cashInfo.shiftStatus === 'closed' ? 1 : 0)}`;
+              const desc = quickOpeningNotes.trim()
+                ? `Apertura de Caja (${shiftLabel}) — ${quickOpeningNotes.trim()}`
+                : `Apertura de Caja (${shiftLabel}) — Fondo inicial de sencillo`;
+              await addCashMovement({
+                type: 'apertura',
+                category: 'Apertura de Caja',
+                description: desc,
+                amount: amt,
+                responsible: currentUser?.name || currentUser?.username || 'Administración',
+              });
+              setShowMustOpenCashModal(false);
+              setQuickOpeningNotes('');
+            }}>
+              <div className="form-group">
+                <label style={{ fontWeight: 700, fontSize: '0.88rem' }}>
+                  Fondo Inicial en Cajón (C$) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={quickOpeningAmount}
+                  onChange={e => setQuickOpeningAmount(e.target.value)}
+                  placeholder="Ej: 1000.00"
+                  autoFocus
+                  required
+                  style={{ fontSize: '1.1rem', fontWeight: 700 }}
+                />
+                <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                  {[0, 500, 1000, 1500, 2000, 3000].map(val => (
+                    <button
+                      key={val}
+                      type="button"
+                      className="btn btn-ghost"
+                      style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                      onClick={() => setQuickOpeningAmount(String(val))}
+                    >
+                      C${val}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginTop: 12 }}>
+                <label style={{ fontSize: '0.82rem' }}>Nota u Observación (Opcional):</label>
+                <input
+                  value={quickOpeningNotes}
+                  onChange={e => setQuickOpeningNotes(e.target.value)}
+                  placeholder="Ej: Billetes de cambio C$20, C$50, C$100..."
+                />
+              </div>
+
+              <div className="modal-actions" style={{ marginTop: 20 }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setShowMustOpenCashModal(false);
+                    setShowCashRegisterModal(true);
+                  }}
+                >
+                  Ver Arqueo Completo
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ background: 'var(--success)', color: '#0f172a', fontWeight: 800, padding: '10px 20px' }}
+                >
+                  <Unlock size={17} /> Confirmar &amp; Abrir Caja
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   /* ========================================================================= */
   /* VISTA EN PANTALLA COMPLETA DE DETALLES DE LA VENTA & COBRO (SECCIÓN VENTA)*/
   /* ========================================================================= */
@@ -314,6 +474,37 @@ export default function NewSale({ onNavigate }) {
           </div>
         </div>
 
+        {/* ALERTA EN CASO DE CAJA CERRADA EN COBRO */}
+        {!cashInfo.isRegisterOpen && (
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.18)',
+            border: '1px solid rgba(239, 68, 68, 0.45)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '12px 18px',
+            marginBottom: 14,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 10,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Lock size={18} color="var(--danger)" />
+              <span style={{ fontSize: '0.88rem', color: '#f87171', fontWeight: 700 }}>
+                La caja se encuentra CERRADA {cashInfo.autoClosedAt7pm ? '(Cierre automático 7:00 PM)' : ''}. Debes abrir caja para confirmar y procesar este cobro.
+              </span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ background: 'var(--success)', color: '#0f172a', fontWeight: 800, padding: '6px 14px' }}
+              onClick={() => setShowMustOpenCashModal(true)}
+            >
+              <Unlock size={15} /> Abrir Caja Ahora
+            </button>
+          </div>
+        )}
+
         {/* Layout a dos columnas en pantalla completa */}
         <div className="pos-checkout-layout">
           {/* COLUMNA 1: RESUMEN DETALLADO DE PRODUCTOS Y TOTALES */}
@@ -330,6 +521,7 @@ export default function NewSale({ onNavigate }) {
                     <tr>
                       <th>Artículo</th>
                       <th>Talla</th>
+                      <th>Color</th>
                       <th>Precio</th>
                       <th style={{ textAlign: 'center' }}>Cant.</th>
                       <th style={{ textAlign: 'right' }}>Subtotal</th>
@@ -347,6 +539,15 @@ export default function NewSale({ onNavigate }) {
                           {it.selectedSize ? (
                             <span className={`badge badge-sm ${SHOE_SIZES_EUR.includes(String(it.selectedSize)) || Number(it.selectedSize) >= 30 ? 'badge-primary' : 'badge-accent'}`}>
                               {formatSizeLabel(it.selectedSize)}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>—</span>
+                          )}
+                        </td>
+                        <td>
+                          {it.color ? (
+                            <span className="badge badge-sm badge-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 700 }}>
+                              Color: {it.color}
                             </span>
                           ) : (
                             <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>—</span>
@@ -579,7 +780,7 @@ export default function NewSale({ onNavigate }) {
                     <div className="form-group" style={{ flex: 1.2, marginBottom: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                         <label style={{ marginBottom: 0, fontSize: '0.82rem', fontWeight: 700 }}>
-                          💵 Efectivo Recibido (C$) *
+                          Efectivo Recibido (C$) *
                         </label>
                         <button
                           type="button"
@@ -616,7 +817,7 @@ export default function NewSale({ onNavigate }) {
 
                     <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
                       <label style={{ marginBottom: 4, fontSize: '0.82rem', fontWeight: 700 }}>
-                        {isCashShort ? '⚠️ Faltante de Pago' : '✅ Cambio / Vuelto'}
+                        {isCashShort ? 'Faltante de Pago' : 'Cambio / Vuelto'}
                       </label>
                       <div
                         className={`change-display-badge large ${
@@ -643,7 +844,7 @@ export default function NewSale({ onNavigate }) {
                       className={`quick-bill-btn exact ${receivedNum === total && !isCashEmpty ? 'active' : ''}`}
                       onClick={() => handleNumpadPress('EXACT')}
                     >
-                      💵 Exacto ({formatCurrency(total)})
+                      Exacto ({formatCurrency(total)})
                     </button>
                     {[100, 200, 500, 1000].map(bill => (
                       <button
@@ -688,8 +889,8 @@ export default function NewSale({ onNavigate }) {
                         <button type="button" className="numpad-btn" onClick={() => handleNumpadPress('0')}>
                           0
                         </button>
-                        <button type="button" className="numpad-btn backspace" onClick={() => handleNumpadPress('BACKSPACE')}>
-                          ⌫
+                        <button type="button" className="numpad-btn backspace" onClick={() => handleNumpadPress('BACKSPACE')} title="Borrar">
+                          <Delete size={18} />
                         </button>
                       </div>
                     </div>
@@ -752,6 +953,12 @@ export default function NewSale({ onNavigate }) {
             </div>
           </div>
         </div>
+
+        {/* Modal de Apertura Obligatoria en Checkout */}
+        {renderMustOpenCashModal()}
+        {showCashRegisterModal && (
+          <CashRegisterModal onClose={() => setShowCashRegisterModal(false)} />
+        )}
       </div>
     );
   }
@@ -765,34 +972,148 @@ export default function NewSale({ onNavigate }) {
         </div>
       </div>
 
+      {/* ALERTA DE CAJA CERRADA / CIERRE AUTOMÁTICO 7 PM */}
+      {!cashInfo.isRegisterOpen && (
+        <div className="pos-cash-warning-banner" style={{
+          background: 'linear-gradient(90deg, rgba(239, 68, 68, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%)',
+          border: '1px solid rgba(239, 68, 68, 0.4)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '12px 18px',
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.2)',
+              borderRadius: '50%',
+              width: 38,
+              height: 38,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--danger)',
+              flexShrink: 0,
+            }}>
+              <Lock size={20} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '0.98rem', color: '#f87171' }}>
+                Caja Cerrada — Es obligatorio abrir caja para procesar ventas
+              </div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                {cashInfo.autoClosedAt7pm
+                  ? 'El turno de caja se cerró automáticamente después de las 7:00 PM por horario de boutique. Puedes iniciar un turno extraordinario.'
+                  : cashInfo.shiftStatus === 'closed'
+                  ? 'Caja cerrada por arqueo de turno. Inicia un nuevo turno para poder cobrar.'
+                  : 'Aún no se ha registrado la apertura de caja de hoy. Registra el fondo de sencillo inicial.'}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ background: 'var(--success)', color: '#0f172a', fontWeight: 800, padding: '8px 16px' }}
+              onClick={() => setShowMustOpenCashModal(true)}
+            >
+              <Unlock size={16} /> Abrir Caja Ahora
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ fontSize: '0.8rem', padding: '8px 12px' }}
+              onClick={() => setShowCashRegisterModal(true)}
+            >
+              Ver Arqueo
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="pos-layout">
         {/* Catálogo de Productos a la Izquierda */}
         <div className="pos-products">
-          <div className="pos-search">
-            <div className="search-input">
+          <div className="pos-search" style={{ gap: 10, marginBottom: 16 }}>
+            {/* Barra de búsqueda ARRIBA */}
+            <div className="search-input" style={{ width: '100%', maxWidth: '100%' }}>
               <Search size={18} />
               <input
-                placeholder="Buscar calzado, joya, código, color..."
+                placeholder="Buscar por nombre, código, color, material..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
-            </div>
-            <div className="pos-cat-tabs">
-              <button
-                className={`cat-tab ${catFilter === 'all' ? 'active' : ''}`}
-                onClick={() => setCatFilter('all')}
-              >
-                Todos los Artículos
-              </button>
-              {categories.map(c => (
+              {search && (
                 <button
-                  key={c.id}
-                  className={`cat-tab ${catFilter === c.id ? 'active' : ''}`}
-                  onClick={() => setCatFilter(c.id)}
+                  type="button"
+                  className="icon-btn small"
+                  onClick={() => setSearch('')}
+                  title="Limpiar búsqueda"
+                  style={{ padding: 2, background: 'transparent', border: 'none', color: 'var(--text-muted)' }}
                 >
-                  {c.icon || (isShoeCategory(c) ? '👡' : '💎')} {c.name}
+                  <X size={14} />
                 </button>
-              ))}
+              )}
+            </div>
+
+            {/* Filtros ABAJO de la barra de búsqueda (Como en el inventario) */}
+            <div className="filters-bar" style={{ display: 'flex', gap: 10, margin: 0, flexWrap: 'wrap', alignItems: 'center' }}>
+              <select
+                value={catFilter}
+                onChange={e => {
+                  setCatFilter(e.target.value);
+                  setSubcatFilter('all');
+                }}
+                style={{ flex: 1, minWidth: 160 }}
+              >
+                <option value="all">Todas las categorías</option>
+                {categories.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={subcatFilter}
+                onChange={e => setSubcatFilter(e.target.value)}
+                disabled={catFilter === 'all'}
+                style={{
+                  flex: 1,
+                  minWidth: 180,
+                  ...(catFilter === 'all' ? { opacity: 0.6, cursor: 'not-allowed' } : {}),
+                }}
+                title={catFilter === 'all' ? 'Selecciona una categoría primero para filtrar subcategorías' : 'Filtrar por subcategoría'}
+              >
+                <option value="all">
+                  {catFilter === 'all'
+                    ? 'Todas las subcategorías (requiere categoría)'
+                    : 'Todas las subcategorías'}
+                </option>
+                {catFilter !== 'all' &&
+                  (categories.find(c => c.id === catFilter)?.subcategories || []).map(sub => (
+                    <option key={sub} value={sub}>{sub}</option>
+                  ))}
+              </select>
+
+              {(catFilter !== 'all' || subcatFilter !== 'all' || search) && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    setCatFilter('all');
+                    setSubcatFilter('all');
+                    setSearch('');
+                  }}
+                  title="Limpiar filtros y búsqueda"
+                  style={{ fontSize: '0.78rem', padding: '6px 12px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}
+                >
+                  <RotateCcw size={13} /> Limpiar
+                </button>
+              )}
             </div>
           </div>
 
@@ -817,12 +1138,19 @@ export default function NewSale({ onNavigate }) {
                     <div className="pos-prod-top">
                       <code>{p.code}</code>
                       <span className={`badge badge-sm ${catInfo.isShoe ? 'badge-info' : 'badge-purple'}`}>
-                        {catInfo.icon} {catInfo.name}
+                        {catInfo.name}
                       </span>
                     </div>
 
                     <h4>{p.name}</h4>
-                    <p className="pos-prod-sub">{p.subcategory} {p.size ? `· ${p.size}` : ''}</p>
+                    <p className="pos-prod-sub">
+                      <span>{p.subcategory} {p.size ? `· ${p.size}` : ''}</span>
+                      {p.color && (
+                        <span className="pos-prod-color-pill">
+                          Color: {p.color}
+                        </span>
+                      )}
+                    </p>
 
                     <div className="pos-prod-bottom">
                       <span className="price">{formatCurrency(p.salePrice)}</span>
@@ -888,9 +1216,19 @@ export default function NewSale({ onNavigate }) {
                               Talla {formatSizeLabel(item.selectedSize)}
                             </span>
                           )}
+                          {item.color && (
+                            <span className="badge badge-sm badge-secondary" style={{ marginLeft: 6, fontWeight: 700 }}>
+                              Color: {item.color}
+                            </span>
+                          )}
                         </div>
                         <small className="cart-item-sub">
                           {item.productCode} · {formatCurrency(item.price)} c/u
+                          {item.color && (
+                            <span style={{ color: 'var(--text-secondary)', marginLeft: 4 }}>
+                              · Color: <strong>{item.color}</strong>
+                            </span>
+                          )}
                         </small>
                       </div>
 
@@ -981,14 +1319,14 @@ export default function NewSale({ onNavigate }) {
                     <div className="wholesale-applied-alert">
                       <Sparkles size={14} color="var(--accent)" />
                       <span>
-                        🎉 <strong>¡Mayoreo {wholesalePct}% aplicado!</strong> Ahorro de -{formatCurrency(wholesaleDiscountAmount)}
+                        <strong>¡Mayoreo {wholesalePct}% aplicado!</strong> Ahorro de -{formatCurrency(wholesaleDiscountAmount)}
                       </span>
                     </div>
                   ) : (
                     <div className="wholesale-upsell-tip">
                       {!applyWholesale
                         ? 'Descuento de mayoreo desactivado (marca una casilla para aplicarlo).'
-                        : `💡 Marca una casilla o agrega ${wholesaleTier.nextTierPieces} art. más para 5% automático.`}
+                        : `Marca una casilla o agrega ${wholesaleTier.nextTierPieces} art. más para 5% automático.`}
                     </div>
                   )}
                 </div>
@@ -1037,11 +1375,7 @@ export default function NewSale({ onNavigate }) {
             {/* BOTÓN PROCESAR VENTA (ABRE EL FORMULARIO EN PANTALLA COMPLETA) */}
             <button
               className="btn btn-primary btn-lg btn-full btn-procesar-venta"
-              onClick={() => {
-                if (cart.length > 0) {
-                  setIsCheckingOut(true);
-                }
-              }}
+              onClick={handleProceedToCheckout}
               disabled={cart.length === 0}
               style={{
                 display: 'flex',
@@ -1090,7 +1424,7 @@ export default function NewSale({ onNavigate }) {
               {/* TALLAS EUROPEAS (EUR) */}
               <div style={{ marginBottom: 14 }}>
                 <span className="badge badge-primary" style={{ fontSize: '0.72rem', marginBottom: 8, display: 'inline-block' }}>
-                  🇪🇺 Tallas Europeas (EUR 35 al 42)
+                  Tallas Europeas (EUR 35 al 42)
                 </span>
                 <div className="size-selector-grid">
                   {SHOE_SIZES_EUR.map(sz => {
@@ -1120,7 +1454,7 @@ export default function NewSale({ onNavigate }) {
               {/* TALLAS AMERICANAS (US) */}
               <div>
                 <span className="badge badge-accent" style={{ fontSize: '0.72rem', marginBottom: 8, display: 'inline-block' }}>
-                  🇺🇸 Tallas Americanas (US 4 al 11)
+                  Tallas Americanas (US 4 al 11)
                 </span>
                 <div className="size-selector-grid">
                   {SHOE_SIZES_US.map(sz => {
@@ -1154,6 +1488,14 @@ export default function NewSale({ onNavigate }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Apertura Obligatoria de Caja */}
+      {renderMustOpenCashModal()}
+
+      {/* Modal Completo de Arqueo y Control de Caja */}
+      {showCashRegisterModal && (
+        <CashRegisterModal onClose={() => setShowCashRegisterModal(false)} />
       )}
     </div>
   );

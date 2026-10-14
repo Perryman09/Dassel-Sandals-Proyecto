@@ -240,11 +240,11 @@ export default function PurchasesSuppliers({ onNavigate }) {
       updatePurchase(editingPurchase.id, purchaseData);
       setShowNewPurchaseModal(false);
       setEditingPurchase(null);
-      alert(`✅ Compra ${purchaseNum} actualizada exitosamente. El inventario se ha sincronizado.`);
+      alert(`Compra ${purchaseNum} actualizada exitosamente. El inventario se ha sincronizado.`);
     } else {
       addPurchase(purchaseData);
       setShowNewPurchaseModal(false);
-      alert(`✅ Compra ${purchaseNum} registrada exitosamente. Se ha actualizado el inventario y Kardex.`);
+      alert(`Compra ${purchaseNum} registrada exitosamente. Se ha actualizado el inventario y Kardex.`);
     }
   };
 
@@ -641,7 +641,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
 
               const supCatInfo =
                 s.category === 'general'
-                  ? { name: 'General / Varios', icon: '📦', isShoe: false }
+                  ? { name: 'General / Varios', icon: '', isShoe: false }
                   : getCategoryInfo(s.category, categories);
 
               return (
@@ -651,7 +651,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span className="code-pill">{s.code}</span>
                         <span className={`cat-badge ${supCatInfo.isShoe ? 'cat-zapatos' : 'cat-joyas'}`} style={{ fontSize: '0.72rem' }}>
-                          {supCatInfo.icon} {supCatInfo.name}
+                          {supCatInfo.name}
                         </span>
                       </div>
                       <h3 style={{ marginTop: 6 }}>{s.name}</h3>
@@ -752,7 +752,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
             <div className="modal-body">
               <div className="info-banner" style={{ marginBottom: 16 }}>
                 <p>
-                  📦 Folio: <strong>{editingPurchase ? editingPurchase.purchaseNumber : getNextPurchaseNumber()}</strong> ·{' '}
+                  Folio: <strong>{editingPurchase ? editingPurchase.purchaseNumber : getNextPurchaseNumber()}</strong> ·{' '}
                   {editingPurchase
                     ? 'Al guardar los cambios, el sistema ajustará automáticamente las diferencias de stock y tallas en el inventario.'
                     : 'Al registrar esta compra, las cantidades se sumarán automáticamente al inventario, se actualizará el precio de costo del producto y se registrará la entrada en el Kardex.'}
@@ -827,7 +827,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
                     <Search size={18} />
                     <input
                       type="text"
-                      placeholder="🔍 Escribe nombre o código (ej: Sandalia Maya, DS-ZAP-001, Tacón, Aretes...)"
+                      placeholder="Escribe nombre o código (ej: Sandalia Maya, DS-ZAP-001, Tacón, Aretes...)"
                       value={productSearchTerm}
                       onChange={e => {
                         setProductSearchTerm(e.target.value);
@@ -990,7 +990,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
                       <div className="purchase-sizes-matrix-box" style={{ marginTop: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
                           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                            👠 Cantidad a recibir por cada talla:
+                            Cantidad a recibir por cada talla:
                           </span>
                           <div className="size-system-selector">
                             <button
@@ -1227,10 +1227,10 @@ export default function PurchasesSuppliers({ onNavigate }) {
                     >
                       {categories.map(cat => (
                         <option key={cat.id} value={cat.id}>
-                          {cat.icon || (isShoeCategory(cat.id, categories) ? '👠' : '💎')} {cat.name}
+                          {cat.name}
                         </option>
                       ))}
-                      <option value="general">📦 General / Varios</option>
+                      <option value="general">General / Varios</option>
                     </select>
                   </div>
                 </div>
@@ -1361,7 +1361,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
                                       fontWeight: 600,
                                     }}
                                   >
-                                    👟 Talla #{sz}: {q} par(es)
+                                    Talla #{sz}: {q} par(es)
                                   </span>
                                 ))}
                               </div>
