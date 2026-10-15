@@ -9,6 +9,10 @@ export class UpdateCategoryDto {
   @IsOptional()
   icon?: string;
 
+  @IsString()
+  @IsOptional()
+  type?: string;
+
   @IsArray()
   @IsOptional()
   subcategories?: string[];

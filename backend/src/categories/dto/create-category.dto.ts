@@ -13,6 +13,10 @@ export class CreateCategoryDto {
   @IsOptional()
   icon?: string;
 
+  @IsString()
+  @IsOptional()
+  type?: string;
+
   @IsArray()
   @IsOptional()
   subcategories?: string[];

@@ -8,6 +8,7 @@ const DEFAULT_CATEGORIES = [
     id: 'zapatos',
     name: 'Zapatos & Tacones',
     icon: '👡',
+    type: 'zapatos',
     subcategories: [
       'Sandalias',
       'Huaraches',
@@ -24,6 +25,7 @@ const DEFAULT_CATEGORIES = [
     id: 'joyas',
     name: 'Joyas & Accesorios',
     icon: '💎',
+    type: 'joyas',
     subcategories: [
       'Collares',
       'Pulseras',
@@ -55,6 +57,7 @@ export class CategoriesService {
             id: cat.id,
             name: cat.name,
             icon: cat.icon,
+            type: cat.type,
             subcategories: cat.subcategories,
           },
         });
@@ -86,6 +89,7 @@ export class CategoriesService {
         id,
         name: dto.name,
         icon: dto.icon || '📁',
+        type: dto.type || 'zapatos',
         subcategories: dto.subcategories || [],
       },
     });
@@ -96,9 +100,10 @@ export class CategoriesService {
     return this.prisma.category.update({
       where: { id },
       data: {
-        name: dto.name,
-        icon: dto.icon,
-        subcategories: dto.subcategories,
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.icon !== undefined && { icon: dto.icon }),
+        ...(dto.type !== undefined && { type: dto.type }),
+        ...(dto.subcategories !== undefined && { subcategories: dto.subcategories }),
       },
     });
   }

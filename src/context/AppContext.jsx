@@ -338,20 +338,21 @@ function appReducer(state, action) {
       const cancelledBy = typeof action.payload === 'object' ? action.payload.cancelledBy : null;
       const cancelledAt = (typeof action.payload === 'object' && action.payload.cancelledAt) || new Date().toISOString();
 
-      const sale = state.sales.find(s => s.id === saleId);
+      const sale = state.sales.find(s => s.id === saleId || (saleId && s.saleNumber === saleId));
       if (!sale || sale.status === 'cancelled') return state;
       const returnMovements = [];
 
       const restoredProducts = state.products.map(p => {
-        const items = sale.items.filter(i => i.productId === p.id);
+        const items = (sale.items || []).filter(i => (i.productId && i.productId === p.id) || (i.productCode && i.productCode === p.code));
         if (items.length > 0) {
           const totalRestored = items.reduce((acc, it) => acc + Number(it.quantity || 0), 0);
           const afterStock = Number(p.stock) + totalRestored;
 
           let updatedSizes = p.sizesStock ? { ...p.sizesStock } : null;
           items.forEach(it => {
-            if (updatedSizes && it.selectedSize && updatedSizes[it.selectedSize] !== undefined) {
-              updatedSizes[it.selectedSize] = Number(updatedSizes[it.selectedSize]) + Number(it.quantity || 1);
+            if (updatedSizes && it.selectedSize) {
+              const currentVal = Number(updatedSizes[it.selectedSize]) || 0;
+              updatedSizes[it.selectedSize] = currentVal + Number(it.quantity || 1);
             }
             const sizePart = it.selectedSize ? ` (Talla ${it.selectedSize})` : '';
             const colorPart = (it.color || p.color) ? ` (Color: ${it.color || p.color})` : '';
@@ -361,7 +362,7 @@ function appReducer(state, action) {
               date: cancelledAt,
               type: 'entrada',
               reason: `Devolución por cancelación de venta ${sale.saleNumber}${reasonSuffix}`,
-              productCode: it.productCode,
+              productCode: it.productCode || p.code,
               productName: `${it.productName || p.name}${sizePart}${colorPart}`,
               quantity: Number(it.quantity || 1),
               remainingStock: afterStock,
@@ -376,7 +377,7 @@ function appReducer(state, action) {
       return {
         ...state,
         sales: state.sales.map(s =>
-          s.id === saleId
+          (s.id === saleId || s.id === sale.id || s.saleNumber === sale.saleNumber)
             ? {
                 ...s,
                 status: 'cancelled',
@@ -1093,9 +1094,12 @@ export function AppProvider({ children }) {
   const cancelSale = async (id, reason) => {
     const canceller = currentUser?.name || currentUser?.username || 'Administración';
     const cancelDate = new Date().toISOString();
+    const targetSale = (state.sales || []).find(s => s.id === id || s.saleNumber === id);
+    const saleIdToUse = targetSale ? targetSale.id : id;
+
     if (backendOnline) {
       try {
-        await api.cancelSale(id, reason, canceller);
+        await api.cancelSale(saleIdToUse, reason, canceller);
         // Sincronizar existencias, movimientos y ventas actualizadas del backend
         const [updatedProds, updatedMoves, updatedSales] = await Promise.all([
           api.getProducts().catch(() => null),
@@ -1112,7 +1116,7 @@ export function AppProvider({ children }) {
     }
     dispatch({
       type: 'CANCEL_SALE',
-      payload: { id, reason, cancelledBy: canceller, cancelledAt: cancelDate },
+      payload: { id: saleIdToUse, reason, cancelledBy: canceller, cancelledAt: cancelDate },
     });
   };
 
@@ -1537,16 +1541,52 @@ export function AppProvider({ children }) {
     dispatch({ type: 'DELETE_CATEGORY', payload: id });
   };
 
-  const addSubcategory = (categoryId, subcategory) => {
-    dispatch({ type: 'ADD_SUBCATEGORY', payload: { categoryId, subcategory } });
+  const addSubcategory = async (categoryId, subcategory) => {
+    const trimmed = String(subcategory || '').trim();
+    if (!trimmed) return;
+    const cat = (state.categories || []).find(c => c.id === categoryId);
+    const currentSubs = Array.isArray(cat?.subcategories) ? [...cat.subcategories] : [];
+    if (!currentSubs.includes(trimmed)) {
+      const updatedSubs = [...currentSubs, trimmed];
+      dispatch({ type: 'ADD_SUBCATEGORY', payload: { categoryId, subcategory: trimmed } });
+      if (backendOnline) {
+        try {
+          await api.updateCategory(categoryId, { subcategories: updatedSubs });
+        } catch (err) {
+          console.warn('Fallo al guardar subcategoría en backend:', err);
+        }
+      }
+    }
   };
 
-  const updateSubcategory = (categoryId, oldName, newName) => {
-    dispatch({ type: 'UPDATE_SUBCATEGORY', payload: { categoryId, oldName, newName } });
+  const updateSubcategory = async (categoryId, oldName, newName) => {
+    const trimmedNew = String(newName || '').trim();
+    if (!trimmedNew || trimmedNew === oldName) return;
+    const cat = (state.categories || []).find(c => c.id === categoryId);
+    const currentSubs = Array.isArray(cat?.subcategories) ? [...cat.subcategories] : [];
+    const updatedSubs = currentSubs.map(s => s === oldName ? trimmedNew : s);
+    dispatch({ type: 'UPDATE_SUBCATEGORY', payload: { categoryId, oldName, newName: trimmedNew } });
+    if (backendOnline) {
+      try {
+        await api.updateCategory(categoryId, { subcategories: updatedSubs });
+      } catch (err) {
+        console.warn('Fallo al actualizar subcategoría en backend:', err);
+      }
+    }
   };
 
-  const deleteSubcategory = (categoryId, subcategory) => {
+  const deleteSubcategory = async (categoryId, subcategory) => {
+    const cat = (state.categories || []).find(c => c.id === categoryId);
+    const currentSubs = Array.isArray(cat?.subcategories) ? [...cat.subcategories] : [];
+    const updatedSubs = currentSubs.filter(s => s !== subcategory);
     dispatch({ type: 'DELETE_SUBCATEGORY', payload: { categoryId, subcategory } });
+    if (backendOnline) {
+      try {
+        await api.updateCategory(categoryId, { subcategories: updatedSubs });
+      } catch (err) {
+        console.warn('Fallo al eliminar subcategoría en backend:', err);
+      }
+    }
   };
 
   return (

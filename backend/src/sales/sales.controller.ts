@@ -38,7 +38,7 @@ export class SalesController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(@Param('id') id: string) {
     return this.salesService.findOne(id);
   }
 
@@ -49,7 +49,7 @@ export class SalesController {
 
   @Patch(':id/cancel')
   cancelSale(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() body?: { reason?: string; cancelledBy?: string },
   ) {
     return this.salesService.cancelSale(id, body?.reason, body?.cancelledBy);

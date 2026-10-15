@@ -74,16 +74,34 @@ export class SalesService {
     });
   }
 
-  async findOne(id: number) {
-    const sale = await this.prisma.sale.findUnique({
-      where: { id },
-      include: {
-        items: true,
-        user: { select: { id: true, username: true, name: true, role: true } },
-      },
-    });
+  async findOne(idOrNumber: string | number) {
+    const rawStr = String(idOrNumber).trim();
+    const isPureNumber = /^\d+$/.test(rawStr);
+    const numericId = parseInt(rawStr, 10);
+
+    let sale = null;
+    if (isPureNumber && !isNaN(numericId)) {
+      sale = await this.prisma.sale.findUnique({
+        where: { id: numericId },
+        include: {
+          items: true,
+          user: { select: { id: true, username: true, name: true, role: true } },
+        },
+      });
+    }
+
     if (!sale) {
-      throw new NotFoundException(`Venta #${id} no encontrada`);
+      sale = await this.prisma.sale.findUnique({
+        where: { saleNumber: rawStr },
+        include: {
+          items: true,
+          user: { select: { id: true, username: true, name: true, role: true } },
+        },
+      });
+    }
+
+    if (!sale) {
+      throw new NotFoundException(`Venta "${idOrNumber}" no encontrada`);
     }
     return sale;
   }
@@ -203,20 +221,23 @@ export class SalesService {
     });
   }
 
-  async cancelSale(id: number, reason?: string, cancelledBy?: string) {
-    const sale = await this.findOne(id);
+  async cancelSale(idOrNumber: string | number, reason?: string, cancelledBy?: string) {
+    const sale = await this.findOne(idOrNumber);
 
     if (sale.status === 'cancelled') {
-      throw new BadRequestException('Esta venta ya fue cancelada previamente');
+      return sale;
     }
 
     return this.prisma.$transaction(async (tx) => {
       // Reintegrar stock y registrar en Kardex
       for (const item of sale.items) {
-        if (!item.productId) continue;
-        const product = await tx.product.findUnique({
-          where: { id: item.productId },
-        });
+        let product = item.productId
+          ? await tx.product.findUnique({ where: { id: item.productId } })
+          : null;
+
+        if (!product && item.productCode) {
+          product = await tx.product.findUnique({ where: { code: item.productCode } });
+        }
 
         if (product) {
           const restoredStock = product.stock + item.quantity;
@@ -237,7 +258,7 @@ export class SalesService {
           });
 
           const itemDesc = [
-            item.productName,
+            item.productName || product.name,
             item.selectedSize ? `(Talla ${item.selectedSize})` : null,
             item.color ? `(Color: ${item.color})` : null,
           ].filter(Boolean).join(' ');
@@ -249,11 +270,12 @@ export class SalesService {
               date: new Date(),
               type: 'entrada',
               reason: `Devolución por cancelación de venta ${sale.saleNumber}${reasonNote}`,
-              productCode: item.productCode,
+              productCode: item.productCode || product.code,
               productName: itemDesc,
               quantity: item.quantity,
               remainingStock: restoredStock,
               productId: product.id,
+              userId: sale.userId || 1,
             },
           });
         }
@@ -261,7 +283,7 @@ export class SalesService {
 
       // Cambiar estado a cancelada con auditoría completa
       return tx.sale.update({
-        where: { id },
+        where: { id: sale.id },
         data: {
           status: 'cancelled',
           cancelledAt: new Date(),
