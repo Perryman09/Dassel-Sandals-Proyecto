@@ -14,11 +14,16 @@ function AppContent() {
   const { currentUser } = useApp();
   const [page, setPage] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarHovered, setSidebarHovered] = useState(false);
 
   // Si no hay sesión activa, muestra la pantalla de inicio de sesión
   if (!currentUser) {
     return <Login />;
   }
+
+  const isSales = page === 'new-sale';
+  // En ventas se auto-contrae automáticamente; se expande al interactuar (hover)
+  const effectiveCollapsed = isSales ? !sidebarHovered : sidebarCollapsed;
 
   const renderPage = () => {
     switch (page) {
@@ -37,12 +42,17 @@ function AppContent() {
       <Sidebar
         currentPage={page}
         onNavigate={setPage}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(c => !c)}
+        collapsed={effectiveCollapsed}
+        isSalesPage={isSales}
+        onHoverChange={setSidebarHovered}
       />
       <main
         className="main-content"
-        style={{ marginLeft: sidebarCollapsed ? 'var(--sidebar-collapsed)' : 'var(--sidebar-width)' }}
+        style={{
+          marginLeft: isSales
+            ? 'var(--sidebar-collapsed)'
+            : (sidebarCollapsed ? 'var(--sidebar-collapsed)' : 'var(--sidebar-width)')
+        }}
       >
         {renderPage()}
       </main>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   LayoutDashboard, Package, ShoppingCart, FileText,
-  BarChart3, Banknote, ChevronLeft, ChevronRight,
+  BarChart3, Banknote,
   Palette, Sun, Moon, Truck, LogOut
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -17,7 +17,7 @@ const menuItems = [
   { id: 'reports', label: 'Reportes & Finanzas', Icon: BarChart3 },
 ];
 
-export default function Sidebar({ currentPage, onNavigate, collapsed, onToggle }) {
+export default function Sidebar({ currentPage, onNavigate, collapsed, isSalesPage, onHoverChange }) {
   const {
     backendOnline,
     currentTheme,
@@ -31,12 +31,20 @@ export default function Sidebar({ currentPage, onNavigate, collapsed, onToggle }
 
   return (
     <>
-      <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+      <aside
+        className={`sidebar ${collapsed ? 'collapsed' : ''} ${isSalesPage && !collapsed ? 'sales-hover-expand' : ''}`}
+        onMouseEnter={() => {
+          if (isSalesPage && onHoverChange) onHoverChange(true);
+        }}
+        onMouseLeave={() => {
+          if (isSalesPage && onHoverChange) onHoverChange(false);
+        }}
+      >
         {/* PARTE SUPERIOR (DE PRIMERO): PERFIL DEL ADMINISTRADOR */}
         <div className={`sidebar-header ${collapsed ? 'header-collapsed' : 'header-user-top'}`}>
           {!collapsed ? (
-            <>
-              <div className="sidebar-user-card-header">
+            <div className="sidebar-user-card-header" style={{ width: '100%', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div className="sidebar-user-avatar-wrap">
                   <img
                     src={currentUser?.avatar || '/dassel-logo.png'}
@@ -53,22 +61,15 @@ export default function Sidebar({ currentPage, onNavigate, collapsed, onToggle }
                   <span className="sidebar-user-username">@{currentUser?.username || 'Dassel2026'}</span>
                   <span className="sidebar-user-role-label">Administrador Principal</span>
                 </div>
-                <button
-                  onClick={logout}
-                  className="sidebar-logout-button"
-                  title="Cerrar Sesión"
-                >
-                  <LogOut size={16} />
-                </button>
               </div>
               <button
-                className="collapse-btn"
-                onClick={onToggle}
-                title="Contraer menú lateral"
+                onClick={logout}
+                className="sidebar-logout-button"
+                title="Cerrar Sesión"
               >
-                <ChevronLeft size={18} />
+                <LogOut size={16} />
               </button>
-            </>
+            </div>
           ) : (
             <div className="sidebar-collapsed-top">
               <div className="sidebar-user-avatar-wrap" style={{ margin: '0 auto 6px auto' }}>
@@ -88,7 +89,7 @@ export default function Sidebar({ currentPage, onNavigate, collapsed, onToggle }
                 onClick={logout}
                 className="icon-btn"
                 style={{
-                  margin: '0 auto 6px auto',
+                  margin: '0 auto',
                   width: 32,
                   height: 32,
                   color: 'var(--danger)',
@@ -98,14 +99,6 @@ export default function Sidebar({ currentPage, onNavigate, collapsed, onToggle }
                 title="Cerrar Sesión"
               >
                 <LogOut size={15} />
-              </button>
-              <button
-                className="collapse-btn"
-                onClick={onToggle}
-                style={{ margin: '0 auto' }}
-                title="Expandir menú lateral"
-              >
-                <ChevronRight size={18} />
               </button>
             </div>
           )}
