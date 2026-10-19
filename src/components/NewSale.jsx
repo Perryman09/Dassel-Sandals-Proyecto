@@ -6,7 +6,7 @@ import {
   Calculator, RotateCcw, FileText, ArrowRight, ArrowLeft,
   Lock, Unlock, Delete
 } from 'lucide-react';
-import { useApp, getWholesaleTier, SHOE_SIZES_EUR, SHOE_SIZES_US } from '../context/AppContext';
+import { useApp, getWholesaleTier, SHOE_SIZES_EUR, SHOE_SIZES_US, getProductSizeSystem } from '../context/AppContext';
 import { formatCurrency } from '../utils/format';
 import ReceiptModal from './ReceiptModal';
 import CashRegisterModal from './CashRegisterModal';
@@ -47,6 +47,10 @@ export default function NewSale({ onNavigate }) {
   // Modal para seleccionar talla de zapato antes de meter al carrito
   const [sizePickerProduct, setSizePickerProduct] = useState(null);
 
+  // Paginación del catálogo: 3 filas x 3 columnas = 9 productos por página
+  const [productPage, setProductPage] = useState(1);
+  const productsPerPage = 9;
+
   // Helper para mostrar prefijo correcto EUR vs US
   const formatSizeLabel = (sz) => {
     if (!sz) return '';
@@ -74,13 +78,27 @@ export default function NewSale({ onNavigate }) {
     return matchSearch && matchCat && matchSubcat;
   });
 
+  const totalPages = Math.max(1, Math.ceil(availableProducts.length / productsPerPage));
+  const currentPage = Math.min(productPage, totalPages);
+  const displayedProducts = availableProducts.slice(
+    (currentPage - 1) * productsPerPage,
+    currentPage * productsPerPage
+  );
+
+  const parseSizesObj = (product) => {
+    if (!product) return {};
+    let s = product.sizesStock;
+    if (typeof s === 'string') {
+      try { s = JSON.parse(s); } catch { s = {}; }
+    }
+    return s && typeof s === 'object' ? s : {};
+  };
+
   const getProductAvailableStock = (product) => {
     if (!product) return 0;
-    if (isShoeCategory(product) && product.sizesStock && typeof product.sizesStock === 'object') {
-      const keys = Object.keys(product.sizesStock);
-      if (keys.length > 0) {
-        return Object.values(product.sizesStock).reduce((acc, v) => acc + Math.max(0, Number(v) || 0), 0);
-      }
+    const sizes = parseSizesObj(product);
+    if (isShoeCategory(product) && Object.keys(sizes).length > 0) {
+      return Object.values(sizes).reduce((acc, v) => acc + Math.max(0, Number(v) || 0), 0);
     }
     return Math.max(0, Number(product.stock) || 0);
   };
@@ -91,9 +109,10 @@ export default function NewSale({ onNavigate }) {
       alert(`El producto "${product.name}" (${product.code}) se encuentra totalmente agotado.`);
       return;
     }
+    const sizes = parseSizesObj(product);
     // Si es calzado y tiene matriz de tallas, abrir selector de talla
-    if (isShoeCategory(product) && product.sizesStock && Object.keys(product.sizesStock).length > 0) {
-      setSizePickerProduct(product);
+    if (isShoeCategory(product) && Object.keys(sizes).length > 0) {
+      setSizePickerProduct({ ...product, sizesStock: sizes });
     } else {
       addToCart(product, '');
     }
@@ -101,8 +120,9 @@ export default function NewSale({ onNavigate }) {
 
   const addToCart = (product, selectedSize = '') => {
     const itemKey = `${product.id}_${selectedSize}`;
-    const maxStockForThis = selectedSize && product.sizesStock
-      ? Math.max(0, Number(product.sizesStock[selectedSize]) || 0)
+    const sizes = parseSizesObj(product);
+    const maxStockForThis = selectedSize && Object.keys(sizes).length > 0
+      ? Math.max(0, Number(sizes[selectedSize]) || 0)
       : getProductAvailableStock(product);
 
     if (maxStockForThis <= 0) {
@@ -1088,13 +1108,19 @@ export default function NewSale({ onNavigate }) {
               <input
                 placeholder="Buscar por nombre, código, color, material..."
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={e => {
+                  setSearch(e.target.value);
+                  setProductPage(1);
+                }}
               />
               {search && (
                 <button
                   type="button"
                   className="icon-btn small"
-                  onClick={() => setSearch('')}
+                  onClick={() => {
+                    setSearch('');
+                    setProductPage(1);
+                  }}
                   title="Limpiar búsqueda"
                   style={{ padding: 2, background: 'transparent', border: 'none', color: 'var(--text-muted)' }}
                 >
@@ -1110,6 +1136,7 @@ export default function NewSale({ onNavigate }) {
                 onChange={e => {
                   setCatFilter(e.target.value);
                   setSubcatFilter('all');
+                  setProductPage(1);
                 }}
                 style={{ flex: 1, minWidth: 160 }}
               >
@@ -1123,7 +1150,10 @@ export default function NewSale({ onNavigate }) {
 
               <select
                 value={subcatFilter}
-                onChange={e => setSubcatFilter(e.target.value)}
+                onChange={e => {
+                  setSubcatFilter(e.target.value);
+                  setProductPage(1);
+                }}
                 disabled={catFilter === 'all'}
                 style={{
                   flex: 1,
@@ -1151,6 +1181,7 @@ export default function NewSale({ onNavigate }) {
                     setCatFilter('all');
                     setSubcatFilter('all');
                     setSearch('');
+                    setProductPage(1);
                   }}
                   title="Limpiar filtros y búsqueda"
                   style={{ fontSize: '0.78rem', padding: '6px 12px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}
@@ -1165,7 +1196,7 @@ export default function NewSale({ onNavigate }) {
             {availableProducts.length === 0 ? (
               <p className="empty-msg">No se encontraron productos disponibles con existencias</p>
             ) : (
-              availableProducts.map(p => {
+              displayedProducts.map(p => {
                 const totalInCartForProd = cart
                   .filter(i => i.productId === p.id)
                   .reduce((acc, it) => acc + it.quantity, 0);
@@ -1219,6 +1250,31 @@ export default function NewSale({ onNavigate }) {
               })
             )}
           </div>
+
+          {/* Paginación del catálogo (Límite de 3 columnas x 3 filas = 9 productos por página) */}
+          {totalPages > 1 && (
+            <div className="pos-product-pagination">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={currentPage <= 1}
+                onClick={() => setProductPage(prev => Math.max(1, prev - 1))}
+              >
+                <ArrowLeft size={15} /> Anterior
+              </button>
+              <span className="pos-pagination-info">
+                Página <strong>{currentPage}</strong> de <strong>{totalPages}</strong> ({availableProducts.length} productos en total)
+              </span>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={currentPage >= totalPages}
+                onClick={() => setProductPage(prev => Math.min(totalPages, prev + 1))}
+              >
+                Siguiente <ArrowRight size={15} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Panel Carrito a la Derecha (SÓLO PRODUCTOS SELECCIONADOS Y BOTÓN PROCESAR VENTA) */}
@@ -1463,87 +1519,107 @@ export default function NewSale({ onNavigate }) {
               </button>
             </div>
             <div className="modal-body">
-              {Object.values(sizePickerProduct.sizesStock || {}).every(q => Number(q) <= 0) && (
-                <div style={{
-                  padding: '10px 14px',
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid var(--danger)',
-                  borderRadius: 'var(--radius-sm)',
-                  color: '#f87171',
-                  fontSize: '0.86rem',
-                  fontWeight: 600,
-                  marginBottom: 14,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                }}>
-                  <AlertTriangle size={18} />
-                  <span>Todas las tallas de este modelo están agotadas.</span>
-                </div>
-              )}
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
-                Elige la talla disponible que deseas agregar al carrito:
-              </p>
+              {(() => {
+                const sizesObj = (() => {
+                  let s = sizePickerProduct.sizesStock;
+                  if (typeof s === 'string') {
+                    try { s = JSON.parse(s); } catch { s = {}; }
+                  }
+                  return s && typeof s === 'object' ? s : {};
+                })();
+                const { isEur, isUs } = getProductSizeSystem(sizePickerProduct);
+                const allZero = Object.values(sizesObj).every(q => Number(q) <= 0);
 
-              {/* TALLAS EUROPEAS (EUR) */}
-              <div style={{ marginBottom: 14 }}>
-                <span className="badge badge-primary" style={{ fontSize: '0.72rem', marginBottom: 8, display: 'inline-block' }}>
-                  Tallas Europeas (EUR 35 al 42)
-                </span>
-                <div className="size-selector-grid">
-                  {SHOE_SIZES_EUR.map(sz => {
-                    const stockCount = Number((sizePickerProduct.sizesStock || {})[sz]) || 0;
-                    const available = stockCount > 0;
-                    return (
-                      <button
-                        key={`picker-eur-${sz}`}
-                        className={`size-pick-card ${available ? 'available' : 'unavailable'}`}
-                        disabled={!available}
-                        onClick={() => addToCart(sizePickerProduct, sz)}
-                      >
-                        <span className="size-tag-num">EUR #{sz}</span>
-                        <span className="size-tag-stock">
-                          {available ? (
-                            <><strong>{stockCount}</strong> en stock</>
-                          ) : (
-                            'Agotada'
-                          )}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                return (
+                  <>
+                    {allZero && (
+                      <div style={{
+                        padding: '10px 14px',
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        border: '1px solid var(--danger)',
+                        borderRadius: 'var(--radius-sm)',
+                        color: '#f87171',
+                        fontSize: '0.86rem',
+                        fontWeight: 600,
+                        marginBottom: 14,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}>
+                        <AlertTriangle size={18} />
+                        <span>Todas las tallas de este modelo están agotadas.</span>
+                      </div>
+                    )}
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
+                      Elige la talla que deseas agregar al carrito:
+                    </p>
 
-              {/* TALLAS AMERICANAS (US) */}
-              <div>
-                <span className="badge badge-accent" style={{ fontSize: '0.72rem', marginBottom: 8, display: 'inline-block' }}>
-                  Tallas Americanas (US 4 al 11)
-                </span>
-                <div className="size-selector-grid">
-                  {SHOE_SIZES_US.map(sz => {
-                    const stockCount = Number((sizePickerProduct.sizesStock || {})[sz]) || 0;
-                    const available = stockCount > 0;
-                    return (
-                      <button
-                        key={`picker-us-${sz}`}
-                        className={`size-pick-card ${available ? 'available' : 'unavailable'}`}
-                        disabled={!available}
-                        onClick={() => addToCart(sizePickerProduct, sz)}
-                      >
-                        <span className="size-tag-num">US #{sz}</span>
-                        <span className="size-tag-stock">
-                          {available ? (
-                            <><strong>{stockCount}</strong> en stock</>
-                          ) : (
-                            'Agotada'
-                          )}
+                    {/* TALLAS EUROPEAS (EUR) - SOLO SI EL MODELO ES DE SISTEMA EUR */}
+                    {isEur && (
+                      <div style={{ marginBottom: isUs ? 14 : 0 }}>
+                        <span className="badge badge-primary" style={{ fontSize: '0.72rem', marginBottom: 8, display: 'inline-block' }}>
+                          Tallas Europeas (EUR 35 al 42)
                         </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                        <div className="size-selector-grid">
+                          {SHOE_SIZES_EUR.map(sz => {
+                            const stockCount = Number(sizesObj[sz]) || 0;
+                            const available = stockCount > 0;
+                            return (
+                              <button
+                                key={`picker-eur-${sz}`}
+                                className={`size-pick-card ${available ? 'available' : 'unavailable'}`}
+                                disabled={!available}
+                                onClick={() => addToCart(sizePickerProduct, sz)}
+                              >
+                                <span className="size-tag-num">EUR #{sz}</span>
+                                <span className="size-tag-stock">
+                                  {available ? (
+                                    <><strong>{stockCount}</strong> en stock</>
+                                  ) : (
+                                    'Agotada'
+                                  )}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TALLAS AMERICANAS (US) - SOLO SI EL MODELO ES DE SISTEMA US */}
+                    {isUs && (
+                      <div>
+                        <span className="badge badge-accent" style={{ fontSize: '0.72rem', marginBottom: 8, display: 'inline-block' }}>
+                          Tallas Americanas (US 4 al 11)
+                        </span>
+                        <div className="size-selector-grid">
+                          {SHOE_SIZES_US.map(sz => {
+                            const stockCount = Number(sizesObj[sz]) || 0;
+                            const available = stockCount > 0;
+                            return (
+                              <button
+                                key={`picker-us-${sz}`}
+                                className={`size-pick-card ${available ? 'available' : 'unavailable'}`}
+                                disabled={!available}
+                                onClick={() => addToCart(sizePickerProduct, sz)}
+                              >
+                                <span className="size-tag-num">US #{sz}</span>
+                                <span className="size-tag-stock">
+                                  {available ? (
+                                    <><strong>{stockCount}</strong> en stock</>
+                                  ) : (
+                                    'Agotada'
+                                  )}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div className="modal-actions">
               <button className="btn btn-ghost" onClick={() => setSizePickerProduct(null)}>

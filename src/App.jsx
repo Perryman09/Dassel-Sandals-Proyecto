@@ -13,7 +13,6 @@ import Login from './components/Login';
 function AppContent() {
   const { currentUser } = useApp();
   const [page, setPage] = useState('dashboard');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarHovered, setSidebarHovered] = useState(false);
 
   // Si no hay sesión activa, muestra la pantalla de inicio de sesión
@@ -21,9 +20,9 @@ function AppContent() {
     return <Login />;
   }
 
-  const isSales = page === 'new-sale';
-  // En ventas se auto-contrae automáticamente; se expande al interactuar (hover)
-  const effectiveCollapsed = isSales ? !sidebarHovered : sidebarCollapsed;
+  // La barra lateral siempre permanece contraída (72px) por defecto en todo el sistema
+  // y se expande de forma flotante al pasar el mouse por encima
+  const isSidebarCollapsed = !sidebarHovered;
 
   const renderPage = () => {
     switch (page) {
@@ -42,16 +41,13 @@ function AppContent() {
       <Sidebar
         currentPage={page}
         onNavigate={setPage}
-        collapsed={effectiveCollapsed}
-        isSalesPage={isSales}
+        collapsed={isSidebarCollapsed}
         onHoverChange={setSidebarHovered}
       />
       <main
         className="main-content"
         style={{
-          marginLeft: isSales
-            ? 'var(--sidebar-collapsed)'
-            : (sidebarCollapsed ? 'var(--sidebar-collapsed)' : 'var(--sidebar-width)')
+          marginLeft: 'var(--sidebar-collapsed)'
         }}
       >
         {renderPage()}

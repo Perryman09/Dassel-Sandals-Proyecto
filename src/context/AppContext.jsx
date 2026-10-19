@@ -81,6 +81,40 @@ export function isShoeCategory(catIdOrObj, categoriesList = initialCategories) {
   return SHOE_KEYWORDS_REGEX.test(lowerId);
 }
 
+// Helper inteligente para determinar si un calzado maneja sistema EUR (35-42), US (4-11), o ambos
+export function getProductSizeSystem(product) {
+  if (!product) return { isEur: false, isUs: false };
+  let sizes = product.sizesStock;
+  if (typeof sizes === 'string') {
+    try { sizes = JSON.parse(sizes); } catch { sizes = {}; }
+  }
+  if (!sizes || typeof sizes !== 'object') sizes = {};
+
+  const eurStock = SHOE_SIZES_EUR.filter(sz => Number(sizes[sz]) > 0);
+  const usStock = SHOE_SIZES_US.filter(sz => Number(sizes[sz]) > 0);
+
+  // 1. Si hay existencias físicas registradas
+  if (eurStock.length > 0 && usStock.length === 0) return { isEur: true, isUs: false };
+  if (usStock.length > 0 && eurStock.length === 0) return { isEur: false, isUs: true };
+  if (eurStock.length > 0 && usStock.length > 0) return { isEur: true, isUs: true };
+
+  // 2. Si todo el stock está en 0 (agotado), revisar qué claves existen en sizesStock
+  const eurKeys = SHOE_SIZES_EUR.filter(sz => sz in sizes);
+  const usKeys = SHOE_SIZES_US.filter(sz => sz in sizes);
+
+  if (eurKeys.length > 0 && usKeys.length === 0) return { isEur: true, isUs: false };
+  if (usKeys.length > 0 && eurKeys.length === 0) return { isEur: false, isUs: true };
+  if (eurKeys.length > 0 && usKeys.length > 0) return { isEur: true, isUs: true };
+
+  // 3. Fallback por campo size del producto si tiene texto
+  const sizeText = String(product.size || '');
+  if (/EUR|3[5-9]|4[0-2]/i.test(sizeText)) return { isEur: true, isUs: false };
+  if (/US|[4-9]\b|1[0-1]\b/i.test(sizeText)) return { isEur: false, isUs: true };
+
+  // Por defecto calzado en general maneja US
+  return { isEur: false, isUs: true };
+}
+
 export function getCategoryInfo(catIdOrObj, categoriesList = initialCategories) {
   const catId = typeof catIdOrObj === 'object' ? (catIdOrObj?.category || catIdOrObj?.id || '') : String(catIdOrObj || '');
   const list = Array.isArray(categoriesList) && categoriesList.length > 0 ? categoriesList : initialCategories;
@@ -1638,6 +1672,7 @@ export function AppProvider({ children }) {
         deleteSubcategory,
         isShoeCategory: (catIdOrObj) => isShoeCategory(catIdOrObj, state.categories),
         getCategoryInfo: (catIdOrObj) => getCategoryInfo(catIdOrObj, state.categories),
+        getProductSizeSystem,
       }}
     >
       {children}

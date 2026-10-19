@@ -2,7 +2,7 @@ import {
   Eye, X, Tag, Package, Edit, Calendar, DollarSign,
   TrendingUp, CheckCircle, AlertTriangle, Layers, Shirt, Palette
 } from 'lucide-react';
-import { useApp, SHOE_SIZES_EUR, SHOE_SIZES_US } from '../context/AppContext';
+import { useApp, SHOE_SIZES_EUR, SHOE_SIZES_US, getProductSizeSystem } from '../context/AppContext';
 import { formatCurrency } from '../utils/format';
 
 export default function ProductDetailModal({ product, onClose, onEdit, onAdjust, onBarcode }) {
@@ -29,21 +29,8 @@ export default function ProductDetailModal({ product, onClose, onEdit, onAdjust,
   const sizes = parseSizes(product);
   const isShoe = isShoeCategory(product);
   const catInfo = getCategoryInfo(product);
-
-  // Tallas asociadas directamente al producto (claves registradas en sizesStock)
-  const eurSizesToDisplay = SHOE_SIZES_EUR.filter(sz => sz in sizes && sizes[sz] !== undefined);
-  const usSizesToDisplay = SHOE_SIZES_US.filter(sz => sz in sizes && sizes[sz] !== undefined);
-  const otherSizesToDisplay = Object.keys(sizes).filter(sz => !SHOE_SIZES_EUR.includes(sz) && !SHOE_SIZES_US.includes(sz));
-
-  const eurWithStock = eurSizesToDisplay.filter(sz => Number(sizes[sz]) > 0);
-  const usWithStock = usSizesToDisplay.filter(sz => Number(sizes[sz]) > 0);
-
-  // Determinar qué sistema corresponde a este producto:
-  // Si solo tiene registradas o con stock US, se muestra solo US. Si solo EUR, se muestra solo EUR.
-  const showEur = eurWithStock.length > 0 || (usWithStock.length === 0 && eurSizesToDisplay.length > 0);
-  const showUs = usWithStock.length > 0 || (eurWithStock.length === 0 && usSizesToDisplay.length > 0);
-
-  const hasShoeSizes = isShoe && ((showEur && eurSizesToDisplay.length > 0) || (showUs && usSizesToDisplay.length > 0) || otherSizesToDisplay.length > 0);
+  const { isEur, isUs } = getProductSizeSystem(product);
+  const hasShoeSizes = isShoe && (isEur || isUs);
 
   const cost = Number(product.costPrice) || 0;
   const sale = Number(product.salePrice) || 0;
@@ -174,28 +161,28 @@ export default function ProductDetailModal({ product, onClose, onEdit, onAdjust,
             </div>
           </div>
 
-          {/* MATRIZ DE TALLAS ASOCIADAS A ESTE MODELO */}
+          {/* MATRIZ DE TALLAS COMPLETA SEGÚN EL SISTEMA CORRESPONDIENTE (EUR O US) */}
           {hasShoeSizes && (
             <div className="product-detail-sizes-box">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <h4 style={{ margin: 0, fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Layers size={16} color="var(--accent)" /> Tallas Asociadas al Modelo
+                  <Layers size={16} color="var(--accent)" /> Disponibilidad de Tallas del Modelo
                 </h4>
                 <small style={{ color: 'var(--text-muted)' }}>
                   Verde = Con existencia · Gris = Agotada
                 </small>
               </div>
 
-              {/* TALLAS EUROPEAS EUR (SOLO SI EL MODELO TIENE TALLAS EUR) */}
-              {showEur && eurSizesToDisplay.length > 0 && (
-                <div style={{ marginBottom: (showUs && usSizesToDisplay.length > 0) ? 14 : 0 }}>
+              {/* TALLAS EUROPEAS EUR (SOLO SI EL PRODUCTO ES DE TALLAS EUR) */}
+              {isEur && (
+                <div style={{ marginBottom: isUs ? 14 : 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <span className="badge badge-primary" style={{ fontSize: '0.74rem' }}>
-                      Tallas Europeas (EUR) · {eurSizesToDisplay.length} {eurSizesToDisplay.length === 1 ? 'talla' : 'tallas'}
+                      Tallas Europeas (EUR 35 al 42)
                     </span>
                   </div>
                   <div className="product-sizes-pill-grid">
-                    {eurSizesToDisplay.map(sz => {
+                    {SHOE_SIZES_EUR.map(sz => {
                       const count = Number(sizes[sz]) || 0;
                       const hasStock = count > 0;
                       return (
@@ -211,46 +198,21 @@ export default function ProductDetailModal({ product, onClose, onEdit, onAdjust,
                 </div>
               )}
 
-              {/* TALLAS AMERICANAS US (SOLO SI EL MODELO TIENE TALLAS US) */}
-              {showUs && usSizesToDisplay.length > 0 && (
-                <div style={{ marginBottom: otherSizesToDisplay.length > 0 ? 14 : 0 }}>
+              {/* TALLAS AMERICANAS US (SOLO SI EL PRODUCTO ES DE TALLAS US) */}
+              {isUs && (
+                <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <span className="badge badge-accent" style={{ fontSize: '0.74rem' }}>
-                      Tallas Americanas (US) · {usSizesToDisplay.length} {usSizesToDisplay.length === 1 ? 'talla' : 'tallas'}
+                      Tallas Americanas (US 4 al 11)
                     </span>
                   </div>
                   <div className="product-sizes-pill-grid">
-                    {usSizesToDisplay.map(sz => {
+                    {SHOE_SIZES_US.map(sz => {
                       const count = Number(sizes[sz]) || 0;
                       const hasStock = count > 0;
                       return (
                         <div key={`detail-us-${sz}`} className={`detail-size-pill ${hasStock ? 'has-stock' : 'no-stock'}`}>
                           <span className="size-name">US #{sz}</span>
-                          <strong className="size-count">
-                            {hasStock ? `${count} ${count === 1 ? 'par' : 'pares'}` : 'Agotada'}
-                          </strong>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* OTRAS TALLAS ASOCIADAS */}
-              {otherSizesToDisplay.length > 0 && (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <span className="badge badge-info" style={{ fontSize: '0.74rem' }}>
-                      Otras Tallas · {otherSizesToDisplay.length}
-                    </span>
-                  </div>
-                  <div className="product-sizes-pill-grid">
-                    {otherSizesToDisplay.map(sz => {
-                      const count = Number(sizes[sz]) || 0;
-                      const hasStock = count > 0;
-                      return (
-                        <div key={`detail-other-${sz}`} className={`detail-size-pill ${hasStock ? 'has-stock' : 'no-stock'}`}>
-                          <span className="size-name">Talla #{sz}</span>
                           <strong className="size-count">
                             {hasStock ? `${count} ${count === 1 ? 'par' : 'pares'}` : 'Agotada'}
                           </strong>

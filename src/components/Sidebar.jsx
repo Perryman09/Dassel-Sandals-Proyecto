@@ -17,7 +17,7 @@ const menuItems = [
   { id: 'reports', label: 'Reportes & Finanzas', Icon: BarChart3 },
 ];
 
-export default function Sidebar({ currentPage, onNavigate, collapsed, isSalesPage, onHoverChange }) {
+export default function Sidebar({ currentPage, onNavigate, collapsed, onHoverChange }) {
   const {
     backendOnline,
     currentTheme,
@@ -32,12 +32,12 @@ export default function Sidebar({ currentPage, onNavigate, collapsed, isSalesPag
   return (
     <>
       <aside
-        className={`sidebar ${collapsed ? 'collapsed' : ''} ${isSalesPage && !collapsed ? 'sales-hover-expand' : ''}`}
+        className={`sidebar ${collapsed ? 'collapsed' : ''} ${!collapsed ? 'sidebar-hover-expand' : ''}`}
         onMouseEnter={() => {
-          if (isSalesPage && onHoverChange) onHoverChange(true);
+          if (onHoverChange) onHoverChange(true);
         }}
         onMouseLeave={() => {
-          if (isSalesPage && onHoverChange) onHoverChange(false);
+          if (onHoverChange) onHoverChange(false);
         }}
       >
         {/* PARTE SUPERIOR (DE PRIMERO): PERFIL DEL ADMINISTRADOR */}
