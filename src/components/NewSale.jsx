@@ -74,8 +74,23 @@ export default function NewSale({ onNavigate }) {
     return matchSearch && matchCat && matchSubcat;
   });
 
+  const getProductAvailableStock = (product) => {
+    if (!product) return 0;
+    if (isShoeCategory(product) && product.sizesStock && typeof product.sizesStock === 'object') {
+      const keys = Object.keys(product.sizesStock);
+      if (keys.length > 0) {
+        return Object.values(product.sizesStock).reduce((acc, v) => acc + Math.max(0, Number(v) || 0), 0);
+      }
+    }
+    return Math.max(0, Number(product.stock) || 0);
+  };
+
   const handleProductClick = (product) => {
-    if (Number(product.stock) <= 0) return;
+    const available = getProductAvailableStock(product);
+    if (available <= 0) {
+      alert(`El producto "${product.name}" (${product.code}) se encuentra totalmente agotado.`);
+      return;
+    }
     // Si es calzado y tiene matriz de tallas, abrir selector de talla
     if (isShoeCategory(product) && product.sizesStock && Object.keys(product.sizesStock).length > 0) {
       setSizePickerProduct(product);
@@ -87,15 +102,21 @@ export default function NewSale({ onNavigate }) {
   const addToCart = (product, selectedSize = '') => {
     const itemKey = `${product.id}_${selectedSize}`;
     const maxStockForThis = selectedSize && product.sizesStock
-      ? Number(product.sizesStock[selectedSize]) || 0
-      : Number(product.stock) || 0;
+      ? Math.max(0, Number(product.sizesStock[selectedSize]) || 0)
+      : getProductAvailableStock(product);
 
-    if (maxStockForThis <= 0) return;
+    if (maxStockForThis <= 0) {
+      alert(`La talla o producto seleccionado (${product.code}) se encuentra agotado.`);
+      return;
+    }
 
     setCart(prev => {
       const existing = prev.find(i => i.cartKey === itemKey);
       if (existing) {
-        if (existing.quantity >= maxStockForThis) return prev;
+        if (existing.quantity >= maxStockForThis) {
+          alert(`No puedes agregar más unidades de "${product.name}". Existencias disponibles: ${maxStockForThis}`);
+          return prev;
+        }
         const newQty = existing.quantity + 1;
         return prev.map(i =>
           i.cartKey === itemKey
@@ -221,8 +242,30 @@ export default function NewSale({ onNavigate }) {
     setCashReceived(String(amount));
   };
 
+  const validateCartItemsStock = () => {
+    for (const item of cart) {
+      const prod = products.find(p => p.id === item.productId || p.code === item.productCode);
+      if (!prod) {
+        alert(`El artículo "${item.productName}" no se encontró en el catálogo.`);
+        return false;
+      }
+      let realAvail = 0;
+      if (item.selectedSize && prod.sizesStock && typeof prod.sizesStock === 'object') {
+        realAvail = Number(prod.sizesStock[item.selectedSize]) || 0;
+      } else {
+        realAvail = getProductAvailableStock(prod);
+      }
+      if (realAvail < item.quantity || realAvail <= 0) {
+        alert(`Existencias insuficientes para "${item.productName}"${item.selectedSize ? ` (Talla ${formatSizeLabel(item.selectedSize)})` : ''}. Disponible: ${realAvail}, en carrito: ${item.quantity}. Por favor ajusta tu carrito.`);
+        return false;
+      }
+    }
+    return true;
+  };
+
   const handleProceedToCheckout = () => {
     if (cart.length === 0) return;
+    if (!validateCartItemsStock()) return;
     const freshCash = getCashBalance();
     if (!freshCash.isRegisterOpen) {
       setShowMustOpenCashModal(true);
@@ -233,6 +276,7 @@ export default function NewSale({ onNavigate }) {
 
   const handleCompleteSale = () => {
     if (cart.length === 0) return;
+    if (!validateCartItemsStock()) return;
 
     const freshCash = getCashBalance();
     if (!freshCash.isRegisterOpen) {
@@ -1126,7 +1170,8 @@ export default function NewSale({ onNavigate }) {
                   .filter(i => i.productId === p.id)
                   .reduce((acc, it) => acc + it.quantity, 0);
 
-                const isOut = Number(p.stock) <= 0;
+                const effectiveStock = getProductAvailableStock(p);
+                const isOut = effectiveStock <= 0;
                 const catInfo = getCategoryInfo(p);
 
                 return (
@@ -1134,6 +1179,7 @@ export default function NewSale({ onNavigate }) {
                     key={p.id}
                     className={`pos-product-card ${totalInCartForProd > 0 ? 'in-cart' : ''} ${isOut ? 'out-of-stock' : ''}`}
                     onClick={() => handleProductClick(p)}
+                    style={isOut ? { cursor: 'not-allowed', opacity: 0.65 } : {}}
                   >
                     <div className="pos-prod-top">
                       <code>{p.code}</code>
@@ -1158,7 +1204,7 @@ export default function NewSale({ onNavigate }) {
                         {isOut ? (
                           <>Agotado</>
                         ) : (
-                          <>Stock: <strong>{p.stock}</strong> pzas</>
+                          <>Stock: <strong>{effectiveStock}</strong> pzas</>
                         )}
                       </span>
                     </div>
@@ -1417,6 +1463,24 @@ export default function NewSale({ onNavigate }) {
               </button>
             </div>
             <div className="modal-body">
+              {Object.values(sizePickerProduct.sizesStock || {}).every(q => Number(q) <= 0) && (
+                <div style={{
+                  padding: '10px 14px',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid var(--danger)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: '#f87171',
+                  fontSize: '0.86rem',
+                  fontWeight: 600,
+                  marginBottom: 14,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}>
+                  <AlertTriangle size={18} />
+                  <span>Todas las tallas de este modelo están agotadas.</span>
+                </div>
+              )}
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
                 Elige la talla disponible que deseas agregar al carrito:
               </p>

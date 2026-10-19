@@ -13,6 +13,12 @@
   overflow-y: auto;
 }
 
+.main-content:has(.pos-page) {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
 /* ============================
    SIDEBAR
    ============================ */
@@ -869,37 +875,39 @@
    POS LAYOUT & SIZING
    ============================ */
 .pos-page {
-  padding: 12px 24px 16px 24px;
+  padding: 10px 20px 10px 20px;
   max-width: 100%;
+  height: 100vh;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .pos-page-header,
 .pos-page .page-header {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .pos-page-header h1,
 .pos-page .page-header h1 {
-  font-size: 1.45rem;
-  margin-bottom: 2px;
+  font-size: 1.35rem;
+  margin-bottom: 1px;
 }
 
 .pos-page-header p,
 .pos-page .page-header p {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--text-muted);
-}
-
-.pos-layout {
-  display: grid;
-  grid-template-columns: 1fr 440px;
-  gap: 18px;
-  height: calc(100vh - 105px);
 }
 
 .pos-products {
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -1068,7 +1076,8 @@
   gap: 12px;
   overflow-y: auto;
   padding-right: 4px;
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
 }
 
 .pos-product-card {
@@ -1193,21 +1202,30 @@
    ============================ */
 .pos-layout {
   display: grid;
-  grid-template-columns: 1fr 520px;
-  gap: 22px;
-  height: calc(100vh - 110px);
-  min-height: 580px;
+  grid-template-columns: 1fr 500px;
+  gap: 16px;
+  flex: 1 1 0%;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 @media (min-width: 1400px) {
   .pos-layout {
-    grid-template-columns: 1fr 540px;
+    grid-template-columns: 1fr 520px;
   }
 }
 
 @media (min-width: 1600px) {
   .pos-layout {
-    grid-template-columns: 1fr 580px;
+    grid-template-columns: 1fr 560px;
+  }
+}
+
+@media (max-width: 1366px) {
+  .pos-layout {
+    grid-template-columns: 1fr 450px;
+    gap: 12px;
   }
 }
 
@@ -4387,6 +4405,33 @@
 .product-detail-modal {
   max-width: 740px !important;
   width: 95%;
+  max-height: 88vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.product-detail-modal .modal-header {
+  flex-shrink: 0;
+  padding: 14px 20px;
+}
+
+.product-detail-modal .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto !important;
+  padding: 14px 20px;
+}
+
+.product-detail-modal .modal-actions {
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  z-index: 10;
+  padding: 12px 20px;
+  box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.25);
 }
 
 .product-detail-icon-wrap {
@@ -4555,4 +4600,67 @@
   font-weight: 700;
   color: #f87171;
   margin-top: 2px;
+}
+
+/* =========================================================
+   TABLA DE INVENTARIO: COLUMNA DE ACCIONES FIJA / STICKY
+   ========================================================= */
+.table th.actions-col-sticky,
+.table td.actions-col-sticky {
+  position: sticky;
+  right: 0;
+  background: var(--bg-card);
+  z-index: 3;
+  box-shadow: -4px 0 10px rgba(0, 0, 0, 0.25);
+}
+
+.table th.actions-col-sticky {
+  background: var(--bg-tertiary);
+  z-index: 4;
+}
+
+.table tbody tr:hover td.actions-col-sticky {
+  background: var(--bg-card-hover);
+}
+
+/* =========================================================
+   DASHBOARD: TABLAS OPTIMIZADAS PARA PANTALLAS DE LAPTOP
+   ========================================================= */
+.dash-table-wrapper {
+  max-height: 350px;
+  overflow-y: auto;
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  position: relative;
+}
+
+.dash-table-wrapper thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg-tertiary);
+  box-shadow: 0 1px 0 var(--border);
+}
+
+.dash-compact-table th,
+.dash-compact-table td {
+  padding: 8px 10px;
+  font-size: 0.84rem;
+}
+
+.dash-compact-table td.dash-prod-cell {
+  white-space: normal;
+  max-width: 220px;
+  min-width: 140px;
+  word-break: break-word;
+}
+
+.dash-prod-sub {
+  display: block;
+  color: var(--text-muted);
+  white-space: normal;
+  line-height: 1.35;
+  margin-top: 2px;
+  font-size: 0.74rem;
 }

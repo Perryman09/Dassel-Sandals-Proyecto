@@ -69,7 +69,7 @@ export default function ProductDetailModal({ product, onClose, onEdit, onAdjust,
         </div>
 
         {/* CUERPO DEL MODAL */}
-        <div className="modal-body" style={{ maxHeight: 'calc(85vh - 120px)', overflowY: 'auto', padding: '16px 20px' }}>
+        <div className="modal-body">
           {/* DESCRIPCIÓN */}
           <div className="product-detail-desc-card">
             <h4 style={{ fontSize: '0.82rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6, fontWeight: 700 }}>

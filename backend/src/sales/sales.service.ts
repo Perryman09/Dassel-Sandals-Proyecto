@@ -138,7 +138,7 @@ export class SalesService {
         const subtotal = unitPrice * item.quantity;
         calculatedSubtotal += subtotal;
 
-        const newStock = product.stock - item.quantity;
+        let newStock = Math.max(0, product.stock - item.quantity);
         let updatedSizesStock: any = product.sizesStock;
 
         if (item.selectedSize && product.sizesStock && typeof product.sizesStock === 'object') {
@@ -146,6 +146,7 @@ export class SalesService {
           const curQty = Number(currentSizes[item.selectedSize]) || 0;
           currentSizes[item.selectedSize] = Math.max(0, curQty - item.quantity);
           updatedSizesStock = currentSizes;
+          newStock = Object.values(currentSizes).reduce((acc: number, val: any) => acc + Math.max(0, Number(val) || 0), 0);
         }
 
         // Descontar inventario
@@ -240,13 +241,14 @@ export class SalesService {
         }
 
         if (product) {
-          const restoredStock = product.stock + item.quantity;
+          let restoredStock = product.stock + item.quantity;
           let updatedSizesStock: any = product.sizesStock;
 
           if (item.selectedSize && product.sizesStock && typeof product.sizesStock === 'object') {
             const currentSizes = { ...(product.sizesStock as Record<string, number>) };
             currentSizes[item.selectedSize] = (Number(currentSizes[item.selectedSize]) || 0) + item.quantity;
             updatedSizesStock = currentSizes;
+            restoredStock = Object.values(currentSizes).reduce((acc: number, val: any) => acc + Math.max(0, Number(val) || 0), 0);
           }
 
           await tx.product.update({

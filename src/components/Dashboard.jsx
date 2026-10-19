@@ -393,14 +393,14 @@ export default function Dashboard({ onNavigate }) {
           {alerts.length === 0 ? (
             <p className="empty-msg">Todo el inventario está en niveles óptimos</p>
           ) : (
-            <div className="table-wrapper">
-              <table className="table">
+            <div className="table-wrapper dash-table-wrapper">
+              <table className="table dash-compact-table">
                 <thead>
                   <tr>
                     <th>Código</th>
                     <th>Producto</th>
-                    <th>Stock</th>
-                    <th>Mínimo</th>
+                    <th style={{ textAlign: 'center' }}>Stock</th>
+                    <th style={{ textAlign: 'center' }}>Mínimo</th>
                     <th>Estado</th>
                   </tr>
                 </thead>
@@ -408,21 +408,21 @@ export default function Dashboard({ onNavigate }) {
                   {alerts.map(p => (
                     <tr key={p.id}>
                       <td><code>{p.code}</code></td>
-                      <td>
+                      <td className="dash-prod-cell">
                         <strong>{p.name}</strong>
-                        <small style={{ display: 'block', color: 'var(--text-muted)' }}>
+                        <small className="dash-prod-sub">
                           {p.subcategory}{' '}
                           {isShoeCategory(p.category, categories) && p.sizesStock
                             ? `· ${Object.entries(p.sizesStock).filter(([, q]) => q > 0).map(([sz, q]) => `T${sz}(${q})`).join(' ')}`
                             : ''}
                         </small>
                       </td>
-                      <td>
+                      <td style={{ textAlign: 'center' }}>
                         <strong style={{ color: p.stock === 0 ? 'var(--danger)' : 'var(--warning)' }}>
                           {p.stock}
                         </strong>
                       </td>
-                      <td>{p.minStock}</td>
+                      <td style={{ textAlign: 'center' }}>{p.minStock}</td>
                       <td>
                         <span className={`badge ${p.stock === 0 ? 'badge-danger' : 'badge-warning'}`}>
                           {p.stock === 0 ? 'Agotado' : 'Stock Bajo'}
@@ -447,8 +447,8 @@ export default function Dashboard({ onNavigate }) {
           {recentSales.length === 0 ? (
             <p className="empty-msg">No se han registrado ventas en este periodo</p>
           ) : (
-            <div className="table-wrapper">
-              <table className="table">
+            <div className="table-wrapper dash-table-wrapper">
+              <table className="table dash-compact-table">
                 <thead>
                   <tr>
                     <th>Folio</th>

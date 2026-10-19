@@ -276,7 +276,7 @@ export default function Inventory() {
                 <th onClick={() => handleSort('salePrice')} className="sortable">P. Venta <SortIcon field="salePrice" /></th>
                 <th onClick={() => handleSort('stock')} className="sortable">Existencias <SortIcon field="stock" /></th>
                 <th>Estado</th>
-                <th style={{ textAlign: 'center' }}>Acciones</th>
+                <th className="actions-col-sticky" style={{ textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -301,13 +301,30 @@ export default function Inventory() {
                       </small>
                       {isShoeCategory(p) && p.sizesStock && (
                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-                          {Object.entries(p.sizesStock)
-                            .filter(([, qty]) => Number(qty) > 0)
-                            .map(([sz, qty]) => (
-                              <span key={sz} className="badge badge-sm badge-info" style={{ fontSize: '0.68rem', padding: '1px 5px' }}>
-                                #{sz}: {qty}
-                              </span>
-                            ))}
+                          {(() => {
+                            const activeSizes = Object.entries(p.sizesStock).filter(([, qty]) => Number(qty) > 0);
+                            const displayed = activeSizes.slice(0, 4);
+                            const extra = activeSizes.length - displayed.length;
+                            return (
+                              <>
+                                {displayed.map(([sz, qty]) => (
+                                  <span key={sz} className="badge badge-sm badge-info" style={{ fontSize: '0.68rem', padding: '1px 5px' }}>
+                                    #{sz}: {qty}
+                                  </span>
+                                ))}
+                                {extra > 0 && (
+                                  <span
+                                    className="badge badge-sm badge-secondary"
+                                    style={{ fontSize: '0.68rem', padding: '1px 5px', cursor: 'pointer' }}
+                                    title={`Ver todas: ${activeSizes.map(([sz, qty]) => `#${sz}: ${qty}`).join(', ')}`}
+                                    onClick={() => setViewProductModal(p)}
+                                  >
+                                    +{extra} más
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
@@ -337,7 +354,7 @@ export default function Inventory() {
                       {p.status === 'active' ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
-                  <td>
+                  <td className="actions-col-sticky">
                     <div className="action-btns" style={{ justifyContent: 'center' }}>
                       <button
                         className="icon-btn"
