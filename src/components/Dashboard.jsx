@@ -4,17 +4,9 @@ import {
   AlertTriangle, Clock, Banknote, Sparkles, Layers, Calendar
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { formatCurrency, formatDateTime } from '../utils/format';
+import { formatCurrency, formatDateTime, PERIOD_OPTIONS, isDateWithinPeriod } from '../utils/format';
 import { DailySalesChart, CategoryDonutChart } from './InteractiveCharts';
 import CashRegisterModal from './CashRegisterModal';
-
-const PERIOD_OPTIONS = [
-  { id: 'today', label: 'Hoy', days: 1 },
-  { id: '7d', label: '7 Días', days: 7 },
-  { id: '15d', label: '15 Días', days: 15 },
-  { id: '30d', label: '30 Días', days: 30 },
-  { id: 'all', label: 'Todo el Historial', days: null },
-];
 
 export default function Dashboard({ onNavigate }) {
   const { products, sales, categories, getStats, getCashBalance, isShoeCategory } = useApp();
@@ -26,39 +18,6 @@ export default function Dashboard({ onNavigate }) {
   const stats = getStats();
   const cashInfo = getCashBalance();
 
-  const isWithinPeriod = (dateValue) => {
-    if (!dateValue) return false;
-
-    if (selectedPeriod === 'custom' || dateFrom || dateTo) {
-      const dStr = String(dateValue).split('T')[0];
-      if (dateFrom && dStr < dateFrom) return false;
-      if (dateTo && dStr > dateTo) return false;
-      return true;
-    }
-
-    if (selectedPeriod === 'all') return true;
-
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-
-    if (selectedPeriod === 'today') {
-      if (String(dateValue).startsWith(todayStr)) return true;
-      const d = new Date(dateValue);
-      return (
-        d.getFullYear() === now.getFullYear() &&
-        d.getMonth() === now.getMonth() &&
-        d.getDate() === now.getDate()
-      );
-    }
-
-    const opt = PERIOD_OPTIONS.find(o => o.id === selectedPeriod);
-    if (!opt || !opt.days) return true;
-
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (opt.days - 1), 0, 0, 0, 0);
-    const itemDate = new Date(dateValue);
-    return itemDate >= start && itemDate <= now;
-  };
-
   const currentPeriodLabel = useMemo(() => {
     if (dateFrom || dateTo) {
       if (dateFrom && dateTo) return `${dateFrom} al ${dateTo}`;
@@ -69,7 +28,7 @@ export default function Dashboard({ onNavigate }) {
   }, [selectedPeriod, dateFrom, dateTo]);
 
   const periodSales = useMemo(
-    () => (sales || []).filter(s => isWithinPeriod(s.date)),
+    () => (sales || []).filter(s => isDateWithinPeriod(s.date, selectedPeriod, dateFrom, dateTo)),
     [sales, selectedPeriod, dateFrom, dateTo]
   );
 

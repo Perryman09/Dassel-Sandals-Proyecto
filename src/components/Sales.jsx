@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import {
-  Search, Eye, XCircle, FileText, Calendar, Filter,
-  ChevronLeft, ChevronRight, X, ShoppingCart, Download,
-  Printer, Phone, User, RefreshCw, CheckCircle2, AlertTriangle
+  Search, Eye, XCircle, FileText, Calendar,
+  ChevronLeft, ChevronRight, X, Download,
+  Printer, RefreshCw
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDateTime } from '../utils/format';
 import ReceiptModal from './ReceiptModal';
 
 export default function Sales() {
-  const { sales, cancelSale, exportSalesCSV, products, isShoeCategory, refreshData, backendOnline } = useApp();
+  const { sales, cancelSale, exportSalesCSV, products, isShoeCategory, refreshData } = useApp();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [payFilter, setPayFilter] = useState('all');

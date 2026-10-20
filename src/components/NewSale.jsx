@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Search, Plus, Minus, X, ShoppingCart, Trash2,
+  Search, Plus, Minus, X, ShoppingCart,
   CreditCard, Banknote, ArrowRightLeft, CheckCircle, User,
   Phone, Printer, Sparkles, Tag, Layers, AlertTriangle,
   Calculator, RotateCcw, FileText, ArrowRight, ArrowLeft,

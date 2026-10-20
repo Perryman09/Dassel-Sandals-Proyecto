@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import {
   Truck, Package, Plus, Search, Trash2, Edit, CheckCircle,
-  FileText, Banknote, ArrowRightLeft, CreditCard, Layers,
-  Phone, Mail, MapPin, Building, Printer, X, AlertTriangle,
-  ChevronDown, ExternalLink, MessageCircle, DollarSign, Calendar, Eye
+  FileText,
+  Phone, Mail, MapPin, Building, Printer, X,
+  MessageCircle, DollarSign, Eye
 } from 'lucide-react';
 import { useApp, SHOE_SIZES_EUR, SHOE_SIZES_US } from '../context/AppContext';
-import { formatCurrency, formatDateTime } from '../utils/format';
+import { formatCurrency, formatDateTime, getTodayISO } from '../utils/format';
 
-export default function PurchasesSuppliers({ onNavigate }) {
+export default function PurchasesSuppliers() {
   const {
     products,
     categories,
@@ -95,7 +95,7 @@ export default function PurchasesSuppliers({ onNavigate }) {
     setPurchaseSupplierId(purchase.supplierId ? String(purchase.supplierId) : '');
     setInvoiceNumber(purchase.invoiceNumber || '');
     setPurchaseDate(
-      purchase.date ? String(purchase.date).split('T')[0] : new Date().toISOString().split('T')[0]
+      purchase.date ? String(purchase.date).split('T')[0] : getTodayISO()
     );
     setPaymentMethod(purchase.paymentMethod || 'Transferencia');
     setPurchaseNotes(purchase.notes || '');
@@ -137,16 +137,6 @@ export default function PurchasesSuppliers({ onNavigate }) {
     setItemQuantity('1');
     setProductSearchTerm('');
     setShowProductDropdown(false);
-  };
-
-  const handleProductSelectChange = (pId) => {
-    setSelectedProductId(pId);
-    const prod = products.find(p => String(p.id) === String(pId));
-    if (prod) {
-      setItemUnitCost(String(prod.costPrice || 0));
-      setItemSizesBreakdown({});
-      setItemQuantity('1');
-    }
   };
 
   const handleSizeQtyChange = (size, qtyStr) => {

@@ -28,28 +28,27 @@ export default function Login() {
     }
   });
 
-  // Temporizador para refrescar el estado de bloqueo en segundos
-  const [now, setNow] = useState(Date.now());
+  // Temporizador para refrescar el estado de bloqueo en segundos y auto-desbloquear
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 250);
+    const timer = setInterval(() => {
+      const current = Date.now();
+      setNow(current);
+      if (lockExpires && current >= lockExpires) {
+        localStorage.removeItem('dassel_login_attempts');
+        localStorage.removeItem('dassel_login_locked_until');
+        setAttempts(0);
+        setLockExpires(null);
+        setError('');
+      }
+    }, 250);
     return () => clearInterval(timer);
-  }, []);
+  }, [lockExpires]);
 
   const isLocked = Boolean(lockExpires && now < lockExpires);
   const remainingSeconds = isLocked
     ? Math.max(1, Math.ceil((lockExpires - now) / 1000))
     : 0;
-
-  // Auto-desbloqueo inmediato en cuanto pasen los 10 segundos
-  useEffect(() => {
-    if (lockExpires && now >= lockExpires) {
-      localStorage.removeItem('dassel_login_attempts');
-      localStorage.removeItem('dassel_login_locked_until');
-      setAttempts(0);
-      setLockExpires(null);
-      setError('');
-    }
-  }, [now, lockExpires]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { History, ArrowDownLeft, ArrowUpRight, Search, X, Calendar } from 'lucide-react';
+import { History, Search, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export default function MovementsModal({ onClose }) {

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { formatCurrency } from '../utils/format';
+import { formatCurrency, getCurrentDate } from '../utils/format';
 
 /**
  * Gráfica Interactiva de Ventas sincronizada con el selector de periodo del Dashboard:
@@ -21,7 +21,7 @@ export function DailySalesChart({
 
   // Construir los bloques de datos según el periodo seleccionado arriba
   const chartData = useMemo(() => {
-    const now = new Date();
+    const now = getCurrentDate();
     const buckets = [];
     const isCustom = selectedPeriod === 'custom' || Boolean(dateFrom || dateTo);
 
@@ -32,7 +32,7 @@ export function DailySalesChart({
         end = new Date(`${dateTo}T23:59:59`);
       } else if (dateFrom) {
         start = new Date(`${dateFrom}T00:00:00`);
-        end = new Date();
+        end = getCurrentDate();
       } else {
         end = new Date(`${dateTo}T23:59:59`);
         start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 29, 0, 0, 0);

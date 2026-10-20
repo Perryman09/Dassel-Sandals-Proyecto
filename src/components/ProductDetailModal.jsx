@@ -1,6 +1,6 @@
 import {
   Eye, X, Tag, Package, Edit, Calendar, DollarSign,
-  TrendingUp, CheckCircle, AlertTriangle, Layers, Shirt, Palette
+  TrendingUp, Layers, Shirt, Palette
 } from 'lucide-react';
 import { useApp, SHOE_SIZES_EUR, SHOE_SIZES_US, getProductSizeSystem } from '../context/AppContext';
 import { formatCurrency } from '../utils/format';

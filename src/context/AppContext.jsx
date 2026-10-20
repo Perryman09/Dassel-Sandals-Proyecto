@@ -1,6 +1,6 @@
-import { createContext, useContext, useReducer, useEffect, useState } from 'react';
+import { createContext, useContext, useReducer, useEffect, useState, useCallback } from 'react';
 import { api } from '../services/api';
-import { applyTheme, THEMES } from '../utils/theme';
+import { applyTheme } from '../utils/theme';
 
 const AppContext = createContext();
 
@@ -213,7 +213,7 @@ try {
     localStorage.removeItem('dassel_purchases');
     localStorage.setItem('dassel_production_clean_v2', 'true');
   }
-} catch (e) {
+} catch {
   // ignore
 }
 
@@ -221,7 +221,7 @@ function loadSavedData(key, fallback) {
   try {
     const data = localStorage.getItem(`dassel_${key}`);
     return data ? JSON.parse(data) : fallback;
-  } catch (e) {
+  } catch {
     return fallback;
   }
 }
@@ -440,9 +440,6 @@ function appReducer(state, action) {
     }
 
     // --- ACCIONES DE COMPRAS & PROVEEDORES ---
-    case 'SET_PURCHASES':
-      return { ...state, purchases: action.payload };
-
     case 'ADD_PURCHASE': {
       const newPurchase = {
         ...action.payload,
@@ -636,9 +633,6 @@ function appReducer(state, action) {
     }
 
     // --- ACCIONES DE PROVEEDORES ---
-    case 'SET_SUPPLIERS':
-      return { ...state, suppliers: action.payload };
-
     case 'ADD_SUPPLIER': {
       const newSup = { ...action.payload, id: action.payload.id || Date.now() };
       return { ...state, suppliers: [...(state.suppliers || []), newSup] };
@@ -657,9 +651,6 @@ function appReducer(state, action) {
       };
 
     // --- ACCIONES DE CATEGORÍAS & SUBCATEGORÍAS ---
-    case 'SET_CATEGORIES':
-      return { ...state, categories: action.payload };
-
     case 'ADD_CATEGORY':
       return { ...state, categories: [...(state.categories || []), action.payload] };
 
@@ -747,8 +738,20 @@ function appReducer(state, action) {
 
 export function AppProvider({ children }) {
   const [backendOnline, setBackendOnline] = useState(false);
-  const [currentTheme, setCurrentTheme] = useState('amber');
-  const [themeMode, setThemeMode] = useState('dark');
+  const [currentTheme, setCurrentTheme] = useState(() => {
+    try {
+      return localStorage.getItem('dassel_theme') || 'amber';
+    } catch {
+      return 'amber';
+    }
+  });
+  const [themeMode, setThemeMode] = useState(() => {
+    try {
+      return localStorage.getItem('dassel_mode') || 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
 
   // Usuario Autenticado
   const [currentUser, setCurrentUser] = useState(() => {
@@ -808,18 +811,14 @@ export function AppProvider({ children }) {
     purchases: loadSavedData('purchases', initialPurchases),
   }));
 
-  // Cargar tema y modo guardados al iniciar
+  // Aplicar tema y modo guardados al iniciar o cambiar
   useEffect(() => {
     try {
-      const savedTheme = localStorage.getItem('dassel_theme') || 'amber';
-      const savedMode = localStorage.getItem('dassel_mode') || 'dark';
-      setCurrentTheme(savedTheme);
-      setThemeMode(savedMode);
-      applyTheme(savedTheme, savedMode);
+      applyTheme(currentTheme, themeMode);
     } catch (e) {
       console.warn(e);
     }
-  }, []);
+  }, [currentTheme, themeMode]);
 
   const changeTheme = (themeId) => {
     setCurrentTheme(themeId);
@@ -832,39 +831,46 @@ export function AppProvider({ children }) {
     applyTheme(currentTheme, nextMode);
   };
 
+  const syncAllFromBackend = useCallback(async (shouldContinue = () => true) => {
+    const [
+      dbProducts,
+      dbSales,
+      dbMovements,
+      dbSuppliers,
+      dbPurchases,
+      dbCategories,
+      dbCashMovements,
+    ] = await Promise.all([
+      api.getProducts().catch(() => null),
+      api.getSales().catch(() => null),
+      api.getMovements().catch(() => null),
+      api.getSuppliers().catch(() => null),
+      api.getPurchases().catch(() => null),
+      api.getCategories().catch(() => null),
+      api.getCashMovements().catch(() => null),
+    ]);
+    if (!shouldContinue()) return;
+    if (dbProducts && Array.isArray(dbProducts)) dispatch({ type: 'SET_PRODUCTS', payload: dbProducts });
+    if (dbSales && Array.isArray(dbSales)) dispatch({ type: 'SET_SALES', payload: dbSales });
+    if (dbMovements && Array.isArray(dbMovements)) dispatch({ type: 'SET_MOVEMENTS', payload: dbMovements });
+    if (dbSuppliers && Array.isArray(dbSuppliers)) dispatch({ type: 'SET_SUPPLIERS', payload: dbSuppliers });
+    if (dbPurchases && Array.isArray(dbPurchases)) dispatch({ type: 'SET_PURCHASES', payload: dbPurchases });
+    if (dbCategories && Array.isArray(dbCategories) && dbCategories.length > 0) {
+      dispatch({ type: 'SET_CATEGORIES', payload: dbCategories });
+    }
+    if (dbCashMovements && Array.isArray(dbCashMovements)) {
+      const normalizedMoves = dbCashMovements.map(normalizeCashMovement).filter(Boolean);
+      dispatch({ type: 'SET_CASH_MOVEMENTS', payload: normalizedMoves });
+    }
+  }, []);
+
   // Función para forzar sincronización de datos desde el backend / base de datos Supabase
   const refreshData = async () => {
     try {
       const online = await api.checkHealth();
       setBackendOnline(online);
       if (online) {
-        const [
-          dbProducts,
-          dbSales,
-          dbMovements,
-          dbSuppliers,
-          dbPurchases,
-          dbCategories,
-          dbCashMovements,
-        ] = await Promise.all([
-          api.getProducts().catch(() => null),
-          api.getSales().catch(() => null),
-          api.getMovements().catch(() => null),
-          api.getSuppliers().catch(() => null),
-          api.getPurchases().catch(() => null),
-          api.getCategories().catch(() => null),
-          api.getCashMovements().catch(() => null),
-        ]);
-        if (dbProducts && Array.isArray(dbProducts)) dispatch({ type: 'SET_PRODUCTS', payload: dbProducts });
-        if (dbSales && Array.isArray(dbSales)) dispatch({ type: 'SET_SALES', payload: dbSales });
-        if (dbMovements && Array.isArray(dbMovements)) dispatch({ type: 'SET_MOVEMENTS', payload: dbMovements });
-        if (dbSuppliers && Array.isArray(dbSuppliers)) dispatch({ type: 'SET_SUPPLIERS', payload: dbSuppliers });
-        if (dbPurchases && Array.isArray(dbPurchases)) dispatch({ type: 'SET_PURCHASES', payload: dbPurchases });
-        if (dbCategories && Array.isArray(dbCategories) && dbCategories.length > 0) dispatch({ type: 'SET_CATEGORIES', payload: dbCategories });
-        if (dbCashMovements && Array.isArray(dbCashMovements)) {
-          const normalizedMoves = dbCashMovements.map(normalizeCashMovement).filter(Boolean);
-          dispatch({ type: 'SET_CASH_MOVEMENTS', payload: normalizedMoves });
-        }
+        await syncAllFromBackend();
         return { success: true };
       }
     } catch (err) {
@@ -884,40 +890,7 @@ export function AppProvider({ children }) {
         if (!isMounted) return;
         setBackendOnline(online);
         if (online) {
-          const [
-            dbProducts,
-            dbSales,
-            dbMovements,
-            dbSuppliers,
-            dbPurchases,
-            dbCategories,
-            dbCashMovements,
-          ] = await Promise.all([
-            api.getProducts().catch(() => null),
-            api.getSales().catch(() => null),
-            api.getMovements().catch(() => null),
-            api.getSuppliers().catch(() => null),
-            api.getPurchases().catch(() => null),
-            api.getCategories().catch(() => null),
-            api.getCashMovements().catch(() => null),
-          ]);
-          if (!isMounted) return;
-          if (dbProducts && Array.isArray(dbProducts)) dispatch({ type: 'SET_PRODUCTS', payload: dbProducts });
-          if (dbSales && Array.isArray(dbSales)) dispatch({ type: 'SET_SALES', payload: dbSales });
-          if (dbMovements && Array.isArray(dbMovements)) dispatch({ type: 'SET_MOVEMENTS', payload: dbMovements });
-          if (dbSuppliers && Array.isArray(dbSuppliers)) {
-            dispatch({ type: 'SET_SUPPLIERS', payload: dbSuppliers });
-          }
-          if (dbPurchases && Array.isArray(dbPurchases)) {
-            dispatch({ type: 'SET_PURCHASES', payload: dbPurchases });
-          }
-          if (dbCategories && Array.isArray(dbCategories) && dbCategories.length > 0) {
-            dispatch({ type: 'SET_CATEGORIES', payload: dbCategories });
-          }
-          if (dbCashMovements && Array.isArray(dbCashMovements)) {
-            const normalizedMoves = dbCashMovements.map(normalizeCashMovement).filter(Boolean);
-            dispatch({ type: 'SET_CASH_MOVEMENTS', payload: normalizedMoves });
-          }
+          await syncAllFromBackend(() => isMounted);
         } else if (retries < 12) {
           retryTimer = setTimeout(() => checkBackend(retries + 1), 3000);
         }
@@ -937,7 +910,159 @@ export function AppProvider({ children }) {
       isMounted = false;
       if (retryTimer) clearTimeout(retryTimer);
     };
-  }, []);
+  }, [syncAllFromBackend]);
+
+  const addCashMovement = useCallback(async (data) => {
+    const formatted = normalizeCashMovement(data);
+    if (backendOnline) {
+      try {
+        const created = await api.createCashMovement(formatted);
+        if (created) {
+          const normCreated = normalizeCashMovement(created);
+          dispatch({ type: 'ADD_CASH_MOVEMENT', payload: normCreated });
+          return normCreated;
+        }
+      } catch (err) {
+        console.warn('Fallo al registrar movimiento de caja en backend:', err);
+      }
+    }
+    dispatch({ type: 'ADD_CASH_MOVEMENT', payload: formatted });
+    return formatted;
+  }, [backendOnline]);
+
+  // Cálculo de Caja del Día y Turno Actual (Arqueo)
+  const getCashBalance = useCallback(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const isToday = (dateVal) => {
+      if (!dateVal) return false;
+      if (String(dateVal).startsWith(today)) return true;
+      try {
+        const d = new Date(dateVal);
+        return (
+          d.getFullYear() === now.getFullYear() &&
+          d.getMonth() === now.getMonth() &&
+          d.getDate() === now.getDate()
+        );
+      } catch {
+        return false;
+      }
+    };
+
+    // Movimientos de caja de hoy ordenados cronológicamente (del más antiguo al más reciente para detectar turno)
+    const todayCashMovesChrono = [...state.cashMovements]
+      .filter(m => isToday(m.date))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Movimientos de caja de hoy ordenados del más reciente al más antiguo para mostrar en tabla
+    const todayCashMovesDesc = [...todayCashMovesChrono].reverse();
+
+    const openingsToday = todayCashMovesChrono.filter(m => m.type === 'apertura');
+    const closingsToday = todayCashMovesChrono.filter(m => m.type === 'cierre');
+
+    const lastOpening = openingsToday.length > 0 ? openingsToday[openingsToday.length - 1] : null;
+    const lastClosing = closingsToday.length > 0 ? closingsToday[closingsToday.length - 1] : null;
+
+    // Regla de horario: Si son las 7:00 PM o más (19:00 hrs)
+    const isPast7pm = now.getHours() >= 19;
+    const openingDate = lastOpening ? new Date(lastOpening.date) : null;
+    const openedAfter7pm = openingDate ? openingDate.getHours() >= 19 && isToday(lastOpening.date) : false;
+
+    // Determinar estado del turno de hoy: 'open' | 'closed' | 'unopened'
+    let shiftStatus = 'unopened';
+    let autoClosedAt7pm = false;
+    let closingReason = null;
+
+    if (lastOpening && (!lastClosing || new Date(lastOpening.date) >= new Date(lastClosing.date))) {
+      shiftStatus = 'open';
+    } else if (lastClosing && (!lastOpening || new Date(lastClosing.date) > new Date(lastOpening.date))) {
+      shiftStatus = 'closed';
+      closingReason = lastClosing.description || 'Cierre registrado';
+    }
+
+    // Si estaba abierta pero fue abierta antes de las 7:00 PM y ya pasaron las 7:00 PM -> AUTO-CERRAR
+    if (shiftStatus === 'open' && isPast7pm && !openedAfter7pm) {
+      shiftStatus = 'closed';
+      autoClosedAt7pm = true;
+      closingReason = 'Cierre automático de turno por horario (7:00 PM)';
+    }
+
+    const isRegisterOpen = shiftStatus === 'open';
+
+    // Si hubo un cierre previo hoy, el nuevo turno cuenta sólo después de ese último cierre
+    const cutoffTime = lastClosing ? new Date(lastClosing.date).getTime() : 0;
+
+    const isInCurrentShift = (dateVal) => {
+      if (!isToday(dateVal)) return false;
+      if (shiftStatus === 'closed') return false;
+      if (cutoffTime > 0) {
+        return new Date(dateVal).getTime() > cutoffTime;
+      }
+      return true;
+    };
+
+    // Ventas completadas de hoy dentro del turno activo
+    const shiftSales = state.sales.filter(
+      s => s.status === 'completed' && isInCurrentShift(s.date)
+    );
+
+    const cashSalesToday = shiftSales
+      .filter(s => s.paymentMethod === 'Efectivo')
+      .reduce((acc, s) => acc + (Number(s.total) || 0), 0);
+
+    const cashSalesCount = shiftSales.filter(s => s.paymentMethod === 'Efectivo').length;
+
+    const cardSalesToday = shiftSales
+      .filter(s => s.paymentMethod === 'Tarjeta')
+      .reduce((acc, s) => acc + (Number(s.total) || 0), 0);
+
+    const transferSalesToday = shiftSales
+      .filter(s => s.paymentMethod === 'Transferencia')
+      .reduce((acc, s) => acc + (Number(s.total) || 0), 0);
+
+    // Movimientos del turno activo
+    const activeShiftMoves = todayCashMovesChrono.filter(m => isInCurrentShift(m.date));
+
+    const totalApertura = activeShiftMoves
+      .filter(m => m.type === 'apertura')
+      .reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
+
+    const totalEntradas = activeShiftMoves
+      .filter(m => m.type === 'entrada' || m.type === 'ingreso')
+      .reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
+
+    const totalSalidas = activeShiftMoves
+      .filter(m => m.type === 'salida' || m.type === 'egreso')
+      .reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
+
+    const saldoEsperado =
+      shiftStatus === 'closed'
+        ? 0
+        : totalApertura + cashSalesToday + totalEntradas - totalSalidas;
+
+    return {
+      shiftStatus, // 'open' | 'closed' | 'unopened'
+      isRegisterOpen,
+      isPast7pm,
+      autoClosedAt7pm,
+      openedAfter7pm,
+      closingReason,
+      lastOpening,
+      lastClosing,
+      shiftNumber: openingsToday.length || 1,
+      totalApertura,
+      cashSalesToday,
+      cashSalesCount,
+      cardSalesToday,
+      transferSalesToday,
+      totalEntradas,
+      totalSalidas,
+      saldoEsperado,
+      movements: todayCashMovesDesc,
+      activeShiftMovements: [...activeShiftMoves].reverse(),
+      allMovements: state.cashMovements,
+    };
+  }, [state.cashMovements, state.sales]);
 
   // Regla de negocio: Cierre automático de caja después de las 7:00 PM (19:00 hrs)
   useEffect(() => {
@@ -985,7 +1110,7 @@ export function AppProvider({ children }) {
     handle7pmAutoClose();
     const interval = setInterval(handle7pmAutoClose, 30000);
     return () => clearInterval(interval);
-  }, [state.cashMovements]);
+  }, [state.cashMovements, getCashBalance, addCashMovement]);
 
   // Sincronizar en localStorage como respaldo local
   useEffect(() => {
@@ -1154,24 +1279,6 @@ export function AppProvider({ children }) {
     });
   };
 
-  const addCashMovement = async (data) => {
-    const formatted = normalizeCashMovement(data);
-    if (backendOnline) {
-      try {
-        const created = await api.createCashMovement(formatted);
-        if (created) {
-          const normCreated = normalizeCashMovement(created);
-          dispatch({ type: 'ADD_CASH_MOVEMENT', payload: normCreated });
-          return normCreated;
-        }
-      } catch (err) {
-        console.warn('Fallo al registrar movimiento de caja en backend:', err);
-      }
-    }
-    dispatch({ type: 'ADD_CASH_MOVEMENT', payload: formatted });
-    return formatted;
-  };
-
   const resetAllData = () => dispatch({ type: 'RESET_ALL' });
 
   const getNextCode = (category) => {
@@ -1192,140 +1299,6 @@ export function AppProvider({ children }) {
       return !isNaN(num) && num > max ? num : max;
     }, 0);
     return `VTA-${String(maxNum + 1).padStart(4, '0')}`;
-  };
-
-  // Cálculo de Caja del Día y Turno Actual (Arqueo)
-  const getCashBalance = () => {
-    const today = new Date().toISOString().split('T')[0];
-    const now = new Date();
-    const isToday = (dateVal) => {
-      if (!dateVal) return false;
-      if (String(dateVal).startsWith(today)) return true;
-      try {
-        const d = new Date(dateVal);
-        return (
-          d.getFullYear() === now.getFullYear() &&
-          d.getMonth() === now.getMonth() &&
-          d.getDate() === now.getDate()
-        );
-      } catch {
-        return false;
-      }
-    };
-
-    // Movimientos de caja de hoy ordenados cronológicamente (del más antiguo al más reciente para detectar turno)
-    const todayCashMovesChrono = [...state.cashMovements]
-      .filter(m => isToday(m.date))
-      .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    // Movimientos de caja de hoy ordenados del más reciente al más antiguo para mostrar en tabla
-    const todayCashMovesDesc = [...todayCashMovesChrono].reverse();
-
-    const openingsToday = todayCashMovesChrono.filter(m => m.type === 'apertura');
-    const closingsToday = todayCashMovesChrono.filter(m => m.type === 'cierre');
-
-    const lastOpening = openingsToday.length > 0 ? openingsToday[openingsToday.length - 1] : null;
-    const lastClosing = closingsToday.length > 0 ? closingsToday[closingsToday.length - 1] : null;
-
-    // Regla de horario: Si son las 7:00 PM o más (19:00 hrs)
-    const isPast7pm = now.getHours() >= 19;
-    const openingDate = lastOpening ? new Date(lastOpening.date) : null;
-    const openedAfter7pm = openingDate ? openingDate.getHours() >= 19 && isToday(lastOpening.date) : false;
-
-    // Determinar estado del turno de hoy: 'open' | 'closed' | 'unopened'
-    let shiftStatus = 'unopened';
-    let autoClosedAt7pm = false;
-    let closingReason = null;
-
-    if (lastOpening && (!lastClosing || new Date(lastOpening.date) >= new Date(lastClosing.date))) {
-      shiftStatus = 'open';
-    } else if (lastClosing && (!lastOpening || new Date(lastClosing.date) > new Date(lastOpening.date))) {
-      shiftStatus = 'closed';
-      closingReason = lastClosing.description || 'Cierre registrado';
-    }
-
-    // Si estaba abierta pero fue abierta antes de las 7:00 PM y ya pasaron las 7:00 PM -> AUTO-CERRAR
-    if (shiftStatus === 'open' && isPast7pm && !openedAfter7pm) {
-      shiftStatus = 'closed';
-      autoClosedAt7pm = true;
-      closingReason = 'Cierre automático de turno por horario (7:00 PM)';
-    }
-
-    const isRegisterOpen = shiftStatus === 'open';
-
-    // Si hubo un cierre previo hoy, el nuevo turno cuenta sólo después de ese último cierre
-    const cutoffTime = lastClosing ? new Date(lastClosing.date).getTime() : 0;
-
-    const isInCurrentShift = (dateVal) => {
-      if (!isToday(dateVal)) return false;
-      if (shiftStatus === 'closed') return false;
-      if (cutoffTime > 0) {
-        return new Date(dateVal).getTime() > cutoffTime;
-      }
-      return true;
-    };
-
-    // Ventas completadas de hoy dentro del turno activo
-    const shiftSales = state.sales.filter(
-      s => s.status === 'completed' && isInCurrentShift(s.date)
-    );
-
-    const cashSalesToday = shiftSales
-      .filter(s => s.paymentMethod === 'Efectivo')
-      .reduce((acc, s) => acc + (Number(s.total) || 0), 0);
-
-    const cashSalesCount = shiftSales.filter(s => s.paymentMethod === 'Efectivo').length;
-
-    const cardSalesToday = shiftSales
-      .filter(s => s.paymentMethod === 'Tarjeta')
-      .reduce((acc, s) => acc + (Number(s.total) || 0), 0);
-
-    const transferSalesToday = shiftSales
-      .filter(s => s.paymentMethod === 'Transferencia')
-      .reduce((acc, s) => acc + (Number(s.total) || 0), 0);
-
-    // Movimientos del turno activo
-    const activeShiftMoves = todayCashMovesChrono.filter(m => isInCurrentShift(m.date));
-
-    const totalApertura = activeShiftMoves
-      .filter(m => m.type === 'apertura')
-      .reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
-
-    const totalEntradas = activeShiftMoves
-      .filter(m => m.type === 'entrada' || m.type === 'ingreso')
-      .reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
-
-    const totalSalidas = activeShiftMoves
-      .filter(m => m.type === 'salida' || m.type === 'egreso')
-      .reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
-
-    const saldoEsperado =
-      shiftStatus === 'closed'
-        ? 0
-        : totalApertura + cashSalesToday + totalEntradas - totalSalidas;
-
-    return {
-      shiftStatus, // 'open' | 'closed' | 'unopened'
-      isRegisterOpen,
-      isPast7pm,
-      autoClosedAt7pm,
-      openedAfter7pm,
-      closingReason,
-      lastOpening,
-      lastClosing,
-      shiftNumber: openingsToday.length || 1,
-      totalApertura,
-      cashSalesToday,
-      cashSalesCount,
-      cardSalesToday,
-      transferSalesToday,
-      totalEntradas,
-      totalSalidas,
-      saldoEsperado,
-      movements: todayCashMovesDesc,
-      activeShiftMovements: [...activeShiftMoves].reverse(),
-      allMovements: state.cashMovements,
-    };
   };
 
   // Métricas generales

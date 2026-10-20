@@ -1,21 +1,13 @@
 import { useState, useMemo } from 'react';
 import {
-  TrendingUp, DollarSign, Package, ShoppingBag,
-  Award, PieChart, Percent, Download, Calendar,
-  ArrowDownRight, Receipt, Truck, Banknote, Plus, Layers
+  TrendingUp, DollarSign, ShoppingBag,
+  Award, PieChart, Download, Calendar,
+  ArrowDownRight, Receipt, Banknote, Plus, Layers
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { formatCurrency, formatDateTime } from '../utils/format';
+import { formatCurrency, formatDateTime, PERIOD_OPTIONS, isDateWithinPeriod } from '../utils/format';
 import { PaymentMethodsBar } from './InteractiveCharts';
 import CashRegisterModal from './CashRegisterModal';
-
-const PERIOD_OPTIONS = [
-  { id: 'today', label: 'Hoy', days: 1 },
-  { id: '7d', label: '7 Días', days: 7 },
-  { id: '15d', label: '15 Días', days: 15 },
-  { id: '30d', label: '30 Días', days: 30 },
-  { id: 'all', label: 'Todo el Historial', days: null },
-];
 
 export default function Reports() {
   const {
@@ -26,7 +18,6 @@ export default function Reports() {
     purchases,
     exportSalesCSV,
     isShoeCategory,
-    getCategoryInfo,
   } = useApp();
 
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
@@ -35,56 +26,19 @@ export default function Reports() {
   const [expenseTypeFilter, setExpenseTypeFilter] = useState('all'); // 'all' | 'operativos' | 'compras'
   const [showCashModal, setShowCashModal] = useState(false);
 
-  // Función auxiliar para verificar si una fecha entra en el periodo seleccionado o rango personalizado
-  const isWithinPeriod = (dateValue) => {
-    if (!dateValue) return false;
-
-    // Si hay fechas personalizadas definidas o se seleccionó 'custom'
-    if (selectedPeriod === 'custom' || dateFrom || dateTo) {
-      const dStr = String(dateValue).split('T')[0];
-      if (dateFrom && dStr < dateFrom) return false;
-      if (dateTo && dStr > dateTo) return false;
-      return true;
-    }
-
-    if (selectedPeriod === 'all') return true;
-
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-
-    if (selectedPeriod === 'today') {
-      if (String(dateValue).startsWith(todayStr)) return true;
-      const d = new Date(dateValue);
-      return (
-        d.getFullYear() === now.getFullYear() &&
-        d.getMonth() === now.getMonth() &&
-        d.getDate() === now.getDate()
-      );
-    }
-
-    const opt = PERIOD_OPTIONS.find(o => o.id === selectedPeriod);
-    if (!opt || !opt.days) return true;
-
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (opt.days - 1), 0, 0, 0, 0);
-    const itemDate = new Date(dateValue);
-    return itemDate >= start && itemDate <= now;
-  };
-
   const completedSales = useMemo(
-    () => (sales || []).filter(s => s.status === 'completed' && isWithinPeriod(s.date)),
+    () => (sales || []).filter(s => s.status === 'completed' && isDateWithinPeriod(s.date, selectedPeriod, dateFrom, dateTo)),
     [sales, selectedPeriod, dateFrom, dateTo]
   );
 
   // Total ingresos y costos en el periodo seleccionado
-  const { totalRevenue, totalCost, totalProfit, totalItemsSold, totalWholesaleDiscounts } = useMemo(() => {
+  const { totalRevenue, totalCost, totalProfit, totalItemsSold } = useMemo(() => {
     let rev = 0;
     let cost = 0;
     let itemsCount = 0;
-    let wholesaleDisc = 0;
 
     completedSales.forEach(s => {
       rev += Number(s.total) || 0;
-      wholesaleDisc += Number(s.wholesaleDiscount) || 0;
       (s.items || []).forEach(it => {
         itemsCount += Number(it.quantity) || 1;
         const prod = products.find(p => p.id === it.productId);
@@ -98,7 +52,6 @@ export default function Reports() {
       totalCost: cost,
       totalProfit: Math.max(0, rev - cost),
       totalItemsSold: itemsCount,
-      totalWholesaleDiscounts: wholesaleDisc,
     };
   }, [completedSales, products]);
 
@@ -109,12 +62,12 @@ export default function Reports() {
       m =>
         (m.type === 'salida' || m.type === 'egreso') &&
         m.category !== 'Compra de Mercancía' &&
-        isWithinPeriod(m.date)
+        isDateWithinPeriod(m.date, selectedPeriod, dateFrom, dateTo)
     );
 
     // 2. Compras de mercancía recibidas en el periodo
     const periodPurchases = (purchases || []).filter(
-      p => p.status === 'received' && isWithinPeriod(p.date)
+      p => p.status === 'received' && isDateWithinPeriod(p.date, selectedPeriod, dateFrom, dateTo)
     );
 
     const totalOperatingExpenses = operatingMovements.reduce(

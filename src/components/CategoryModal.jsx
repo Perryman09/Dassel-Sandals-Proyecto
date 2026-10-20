@@ -22,7 +22,6 @@ export default function CategoryModal({ onClose }) {
   // Estados para crear nueva categoría
   const [showNewCatForm, setShowNewCatForm] = useState(false);
   const [newCatName, setNewCatName] = useState('');
-  const [newCatIcon, setNewCatIcon] = useState('');
   const [newCatType, setNewCatType] = useState('zapatos'); // 'zapatos' | 'joyas'
   const [newCatError, setNewCatError] = useState('');
 
@@ -114,7 +113,6 @@ export default function CategoryModal({ onClose }) {
 
     setSelectedCatId(slug);
     setNewCatName('');
-    setNewCatIcon('');
     setNewCatType('zapatos');
     setShowNewCatForm(false);
     setNewCatError('');

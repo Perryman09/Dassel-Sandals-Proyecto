@@ -170,7 +170,7 @@ model PurchaseItem {
 model Category {
   id            String     @id // 'zapatos', 'joyas' o slug personalizado
   name          String
-  icon          String?    @default("📁")
+  icon          String?    @default("folder")
   type          String?    @default("zapatos") // 'zapatos' o 'joyas'
   subcategories Json       // Array de subcategorías: ["Sandalias", "Huaraches", ...]
   createdAt     DateTime   @default(now())

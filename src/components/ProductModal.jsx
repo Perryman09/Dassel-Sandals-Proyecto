@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Save, Layers, Settings, FolderPlus } from 'lucide-react';
+import { X, Save, Layers, FolderPlus } from 'lucide-react';
 import { useApp, SHOE_SIZES_EUR, SHOE_SIZES_US } from '../context/AppContext';
 import CategoryModal from './CategoryModal';
 
@@ -132,7 +132,7 @@ export default function ProductModal({ product, onClose, onSaved }) {
     let computedSize = form.size;
     if (isShoe && hasSizes) {
       const activeSizes = Object.entries(form.sizesStock)
-        .filter(([_, q]) => Number(q) > 0)
+        .filter(([, q]) => Number(q) > 0)
         .map(([sz]) => sz)
         .sort((a, b) => Number(a) - Number(b));
 

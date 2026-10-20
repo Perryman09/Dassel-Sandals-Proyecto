@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import {
-  Banknote, ArrowDownRight, ArrowUpRight, X, Plus,
-  Receipt, ShoppingBag, Truck, Coffee, Wrench, Calendar, Sparkles,
-  Lock, Unlock, CheckCircle, AlertTriangle, Calculator, User
+  Banknote, ArrowDownRight, ArrowUpRight, X,
+  Calendar, Sparkles,
+  Lock, Unlock, CheckCircle, AlertTriangle, User
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDateTime } from '../utils/format';

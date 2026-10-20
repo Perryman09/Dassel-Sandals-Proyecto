@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
-  Search, Plus, Edit, Trash2, ArrowUp, ArrowDown, Filter,
-  Package, AlertTriangle, XCircle, Minus, ChevronLeft, ChevronRight,
+  Search, Plus, Edit, Trash2, ArrowUp, ArrowDown,
+  Package, ChevronLeft, ChevronRight,
   Download, Tag, History, Layers, CheckCircle, X, Folder, Eye
 } from 'lucide-react';
 import { useApp, SHOE_SIZES, SHOE_SIZES_EUR, SHOE_SIZES_US } from '../context/AppContext';
@@ -11,6 +11,11 @@ import BarcodeModal from './BarcodeModal';
 import MovementsModal from './MovementsModal';
 import CategoryModal from './CategoryModal';
 import ProductDetailModal from './ProductDetailModal';
+
+function SortIcon({ field, sortField, sortDir }) {
+  if (sortField !== field) return null;
+  return sortDir === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />;
+}
 
 export default function Inventory() {
   const { products, deleteProduct, adjustStock, exportProductsCSV, categories, isShoeCategory, getCategoryInfo } = useApp();
@@ -110,11 +115,6 @@ export default function Inventory() {
     else { setSortField(field); setSortDir('asc'); }
   };
 
-  const SortIcon = ({ field }) => {
-    if (sortField !== field) return null;
-    return sortDir === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />;
-  };
-
   const getStockBadge = (p) => {
     if (p.stock === 0) return <span className="badge badge-danger">Agotado</span>;
     if (p.stock <= p.minStock) return <span className="badge badge-warning">Stock Bajo</span>;
@@ -138,7 +138,7 @@ export default function Inventory() {
         const sign = qty > 0 ? `+${qty}` : `${qty}`;
         showNotification(`Existencias de ${adjustModal.name} (Talla #${adjustSelectedSize}) ajustadas (${sign} pares).`);
       } else {
-        const entries = Object.entries(multiAdjustSizes).filter(([_, d]) => d !== '' && parseInt(d, 10) !== 0);
+        const entries = Object.entries(multiAdjustSizes).filter(([, d]) => d !== '' && parseInt(d, 10) !== 0);
         if (entries.length === 0) return;
 
         const currentSizes = parseSizes(adjustModal);
@@ -269,12 +269,12 @@ export default function Inventory() {
           <table className="table">
             <thead>
               <tr>
-                <th onClick={() => handleSort('code')} className="sortable">Código <SortIcon field="code" /></th>
-                <th onClick={() => handleSort('name')} className="sortable">Producto / Modelo <SortIcon field="name" /></th>
-                <th onClick={() => handleSort('category')} className="sortable">Categoría <SortIcon field="category" /></th>
-                <th onClick={() => handleSort('costPrice')} className="sortable">P. Costo <SortIcon field="costPrice" /></th>
-                <th onClick={() => handleSort('salePrice')} className="sortable">P. Venta <SortIcon field="salePrice" /></th>
-                <th onClick={() => handleSort('stock')} className="sortable">Existencias <SortIcon field="stock" /></th>
+                <th onClick={() => handleSort('code')} className="sortable">Código <SortIcon field="code" sortField={sortField} sortDir={sortDir} /></th>
+                <th onClick={() => handleSort('name')} className="sortable">Producto / Modelo <SortIcon field="name" sortField={sortField} sortDir={sortDir} /></th>
+                <th onClick={() => handleSort('category')} className="sortable">Categoría <SortIcon field="category" sortField={sortField} sortDir={sortDir} /></th>
+                <th onClick={() => handleSort('costPrice')} className="sortable">P. Costo <SortIcon field="costPrice" sortField={sortField} sortDir={sortDir} /></th>
+                <th onClick={() => handleSort('salePrice')} className="sortable">P. Venta <SortIcon field="salePrice" sortField={sortField} sortDir={sortDir} /></th>
+                <th onClick={() => handleSort('stock')} className="sortable">Existencias <SortIcon field="stock" sortField={sortField} sortDir={sortDir} /></th>
                 <th>Estado</th>
                 <th className="actions-col-sticky" style={{ textAlign: 'center' }}>Acciones</th>
               </tr>

@@ -1,4 +1,4 @@
-import { Printer, X, CheckCircle } from 'lucide-react';
+import { Printer, X } from 'lucide-react';
 import { formatCurrency, formatDateTime } from '../utils/format';
 
 export default function ReceiptModal({ sale, onClose }) {

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -103,7 +103,7 @@ export class ProductsService {
       finalStock = sum;
       if (!computedSize) {
         const activeSizes = Object.entries(dto.sizesStock)
-          .filter(([_, q]) => Number(q) > 0)
+          .filter(([, q]) => Number(q) > 0)
           .map(([sz]) => sz)
           .sort((a, b) => Number(a) - Number(b));
         if (activeSizes.length > 0) {

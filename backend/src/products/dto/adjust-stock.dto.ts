@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsString, IsOptional } from 'class-validator';
+import { IsInt, IsString, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class AdjustStockDto {
