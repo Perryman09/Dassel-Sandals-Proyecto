@@ -27,4 +27,5 @@ dist-ssr
 *.rar
 *.zip
 .env
+.env.example
 backend/.env
