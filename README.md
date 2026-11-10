@@ -56,7 +56,7 @@ Dassel Sandals es una solución tecnológica diseñada para optimizar y automati
 ---
 
 ## 📁 Estructura del Proyecto
-
+```
 Dassel-Sandals-Proyecto/
 ├── client/                  # Aplicación Frontend
 │   ├── src/
@@ -80,8 +80,8 @@ Dassel-Sandals-Proyecto/
 │
 ├── .gitignore               # Archivos ignorados por Git
 └── README.md                # Documentación principal del proyecto
-
 ---
+```
 
 ## ⚙️ Requisitos Previos
 
