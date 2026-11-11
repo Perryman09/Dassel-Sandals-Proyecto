@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -41,11 +41,17 @@ const DEFAULT_CATEGORIES = [
 ];
 
 @Injectable()
-export class CategoriesService {
+export class CategoriesService implements OnModuleInit {
+  private readonly logger = new Logger(CategoriesService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async onModuleInit() {
-    await this.seedDefaults();
+    try {
+      await this.seedDefaults();
+    } catch (err: any) {
+      this.logger.warn(`No se pudieron precargar categorias por defecto (BD no disponible en arranque): ${err?.message || err}`);
+    }
   }
 
   async seedDefaults() {

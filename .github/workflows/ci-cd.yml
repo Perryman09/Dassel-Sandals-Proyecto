@@ -1,0 +1,71 @@
+name: CI/CD Docker -> GHCR -> Render
+
+on:
+  push:
+    branches: [main, main-docker]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-test-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 1. Descargar el código
+        uses: actions/checkout@v4
+
+      - name: 2. Construir la imagen Docker
+        run: docker build -t dassel-sandals:test .
+
+      - name: 3. Prueba rápida de arranque (Smoke test)
+        run: |
+          docker run -d --name app -p 3000:3000 dassel-sandals:test
+          sleep 6
+          curl -sf http://localhost:3000 | grep -qi "Dassel"
+          echo "La app responde correctamente y contiene 'Dassel'"
+
+      - name: 4. Logs del contenedor (solo si falló)
+        if: failure()
+        run: docker logs app
+
+      - name: 5. Login en GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 6. Calcular tags (latest + sha)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha
+
+      - name: 7. Publicar la imagen en GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  deploy-render:
+    needs: build-test-push
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Redesplegar el servicio (Render descarga la nueva imagen :latest)
+        run: curl -sf -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"

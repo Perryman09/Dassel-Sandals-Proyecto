@@ -25,8 +25,14 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    await this.$connect();
-    await this.ensureRowLevelSecurity();
+    try {
+      await this.$connect();
+      await this.ensureRowLevelSecurity();
+    } catch (error) {
+      this.logger.warn(
+        `Conexion a PostgreSQL en inicio diferida: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   async onModuleDestroy() {

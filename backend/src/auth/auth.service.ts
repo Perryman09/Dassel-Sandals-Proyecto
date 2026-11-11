@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   UnauthorizedException,
   NotFoundException,
   OnModuleInit,
@@ -10,10 +11,16 @@ import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async onModuleInit() {
-    await this.seedRolesAndAdminUser();
+    try {
+      await this.seedRolesAndAdminUser();
+    } catch (err: any) {
+      this.logger.warn(`No se pudieron precargar roles y usuario admin (BD no disponible en arranque): ${err?.message || err}`);
+    }
   }
 
   hashPassword(password: string): string {
