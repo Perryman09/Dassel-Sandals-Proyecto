@@ -1,6 +1,13 @@
 node_modules
-dist
-backend
+backend/node_modules
 .git
-.env
+.github
 *.log
+*.env
+backend/.env
+dist
+dist-ssr
+*.local
+.vscode
+.idea
+*.tsbuildinfo
