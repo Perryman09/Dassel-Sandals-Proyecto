@@ -1596,6 +1596,96 @@ export function AppProvider({ children }) {
     }
   };
 
+  // Operaciones de Respaldo Completo (Backup & Restore)
+  const downloadBackup = async () => {
+    let backupPayload = null;
+
+    if (backendOnline) {
+      try {
+        backupPayload = await api.exportBackup();
+      } catch (err) {
+        console.warn('Fallo al obtener respaldo desde backend, usando respaldo local:', err);
+      }
+    }
+
+    if (!backupPayload) {
+      backupPayload = {
+        app: 'Dassel Sandals',
+        version: '2.0',
+        exportedAt: new Date().toISOString(),
+        summary: {
+          categories: (state.categories || []).length,
+          suppliers: (state.suppliers || []).length,
+          products: (state.products || []).length,
+          purchases: (state.purchases || []).length,
+          sales: (state.sales || []).length,
+          movements: (state.movements || []).length,
+          cashMovements: (state.cashMovements || []).length,
+        },
+        data: {
+          categories: state.categories || [],
+          suppliers: state.suppliers || [],
+          products: state.products || [],
+          purchases: state.purchases || [],
+          sales: state.sales || [],
+          movements: state.movements || [],
+          cashMovements: state.cashMovements || [],
+        },
+      };
+    }
+
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(backupPayload, null, 2));
+    const now = new Date();
+    const datePart = now.toISOString().split('T')[0];
+    const timePart = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+    const filename = `Dassel_Sandals_Respaldo_${datePart}_${timePart}.json`;
+
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', filename);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+
+    return backupPayload;
+  };
+
+  const restoreBackupData = async (backupData) => {
+    if (!backupData || !backupData.data) {
+      throw new Error('El archivo no contiene un formato de respaldo válido de Dassel Sandals.');
+    }
+
+    if (backendOnline) {
+      await api.restoreBackup(backupData);
+      await refreshData();
+    } else {
+      const {
+        categories = [],
+        suppliers = [],
+        products = [],
+        purchases = [],
+        sales = [],
+        movements = [],
+        cashMovements = [],
+      } = backupData.data;
+
+      if (categories) dispatch({ type: 'SET_CATEGORIES', payload: categories });
+      if (suppliers) dispatch({ type: 'SET_SUPPLIERS', payload: suppliers });
+      if (products) dispatch({ type: 'SET_PRODUCTS', payload: products });
+      if (purchases) dispatch({ type: 'SET_PURCHASES', payload: purchases });
+      if (sales) dispatch({ type: 'SET_SALES', payload: sales });
+      if (movements) dispatch({ type: 'SET_MOVEMENTS', payload: movements });
+      if (cashMovements) {
+        dispatch({
+          type: 'SET_CASH_MOVEMENTS',
+          payload: cashMovements.map(normalizeCashMovement).filter(Boolean),
+        });
+      }
+    }
+
+    return { success: true };
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -1629,6 +1719,8 @@ export function AppProvider({ children }) {
         getStats,
         exportProductsCSV,
         exportSalesCSV,
+        downloadBackup,
+        restoreBackupData,
         addPurchase,
         updatePurchase,
         cancelPurchase,

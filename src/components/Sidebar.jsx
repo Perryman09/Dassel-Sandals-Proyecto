@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import {
   LayoutDashboard, Package, ShoppingCart, FileText,
-  BarChart3, Banknote,
+  BarChart3, Banknote, Database,
   Palette, Sun, Moon, Truck, LogOut
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { THEMES } from '../utils/theme';
 import CashRegisterModal from './CashRegisterModal';
+import BackupModal from './BackupModal';
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
@@ -28,6 +29,7 @@ export default function Sidebar({ currentPage, onNavigate, collapsed, onHoverCha
     logout,
   } = useApp();
   const [showCashModal, setShowCashModal] = useState(false);
+  const [showBackupModal, setShowBackupModal] = useState(false);
 
   return (
     <>
@@ -128,6 +130,17 @@ export default function Sidebar({ currentPage, onNavigate, collapsed, onHoverCha
             <Banknote size={20} color="var(--accent-light)" />
             {!collapsed && <span>Caja &amp; Gastos</span>}
           </button>
+
+          {/* COPIA DE SEGURIDAD */}
+          <button
+            className="nav-item"
+            onClick={() => setShowBackupModal(true)}
+            title={collapsed ? 'Copia de Seguridad' : ''}
+            style={{ marginTop: 4 }}
+          >
+            <Database size={20} color="var(--accent)" />
+            {!collapsed && <span>Copia de Seguridad</span>}
+          </button>
         </nav>
 
         {/* PIE DE BARRA LATERAL (MODO OSCURO / CLARO, TEMAS, ESTADO) */}
@@ -222,13 +235,23 @@ export default function Sidebar({ currentPage, onNavigate, collapsed, onHoverCha
             >
               <Banknote size={16} color="var(--accent)" />
             </button>
-           
+            <button
+              onClick={() => setShowBackupModal(true)}
+              className="icon-btn"
+              style={{ margin: '0 auto 8px auto', width: 32, height: 32 }}
+              title="Copia de Seguridad"
+            >
+              <Database size={16} color="var(--accent)" />
+            </button>
           </div>
         )}
       </aside>
 
       {/* Modal de Control de Caja */}
       {showCashModal && <CashRegisterModal onClose={() => setShowCashModal(false)} />}
+
+      {/* Modal de Copia de Seguridad */}
+      {showBackupModal && <BackupModal onClose={() => setShowBackupModal(false)} />}
     </>
   );
 }

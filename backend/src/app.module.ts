@@ -10,6 +10,7 @@ import { PurchasesModule } from './purchases/purchases.module';
 import { CategoriesModule } from './categories/categories.module';
 import { CashMovementsModule } from './cash-movements/cash-movements.module';
 import { AuthModule } from './auth/auth.module';
+import { BackupModule } from './backup/backup.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -25,6 +26,7 @@ import { AppController } from './app.controller';
     CategoriesModule,
     CashMovementsModule,
     AuthModule,
+    BackupModule,
   ],
   controllers: [AppController],
 })

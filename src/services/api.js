@@ -8,7 +8,15 @@ function resolveApiBaseUrl() {
     const clean = String(envUrl).trim().replace(/\/+$/, '');
     return clean.endsWith('/api') ? clean : `${clean}/api`;
   }
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:3000/api';
+    }
+    if (host === 'dassel-sandals.onrender.com') {
+      return '/api';
+    }
+    // Si corre en Vercel u otro dominio externo, llamar a Render:
     return 'https://dassel-sandals.onrender.com/api';
   }
   return 'http://localhost:3000/api';
@@ -275,6 +283,18 @@ export const api = {
 
   async getProfile(userId) {
     return request(`/auth/profile/${userId}`);
+  },
+
+  // Copia de Seguridad (Backup & Restore)
+  async exportBackup() {
+    return request('/backup/export');
+  },
+
+  async restoreBackup(backupData) {
+    return request('/backup/restore', {
+      method: 'POST',
+      body: JSON.stringify(backupData),
+    });
   },
 
   // Health check del backend
