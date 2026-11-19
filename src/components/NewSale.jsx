@@ -359,7 +359,7 @@ export default function NewSale({ onNavigate }) {
   if (completedSale) {
     return (
       <div className="page">
-        <div className="success-screen">
+        <div className="success-screen no-print">
           <div className="success-icon"><CheckCircle size={64} /></div>
           <h2>¡Venta Cobrada Exitosamente!</h2>
           <p>
@@ -374,7 +374,7 @@ export default function NewSale({ onNavigate }) {
             </p>
           )}
 
-          <div className="success-actions">
+          <div className="success-actions no-print">
             <button className="btn btn-primary btn-lg" onClick={() => setShowReceiptModal(true)}>
               <Printer size={18} /> Ver / Imprimir Ticket C$
             </button>

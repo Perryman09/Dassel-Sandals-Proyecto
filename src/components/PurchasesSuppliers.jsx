@@ -1437,7 +1437,7 @@ export default function PurchasesSuppliers() {
               </button>
             </div>
 
-            <div className="modal-body receipt-printable">
+            <div className="modal-body receipt-printable" id="printable-receipt">
               <div className="receipt-header">
                 <div className="receipt-brand">DASSEL SANDALS</div>
                 <div className="receipt-subtitle">Comprobante de Entrada de Mercancía</div>

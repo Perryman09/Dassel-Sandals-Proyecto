@@ -1981,10 +1981,33 @@
     padding: 0 !important;
   }
 
+  /* Ocultar elementos de interfaz, navegación, botones y pantallas de fondo */
   .sidebar,
   .no-print,
-  .modal-overlay:not(:has(#printable-receipt, #printable-tag)) {
+  .success-screen,
+  .page-header,
+  .filters-card,
+  .table-container,
+  .pagination,
+  .stats-grid,
+  .kpi-grid,
+  .page > *:not(.modal-overlay),
+  .main-content > *:not(.page):not(.modal-overlay),
+  .modal-overlay:not(:has(#printable-receipt, #printable-tag, .receipt-printable)) {
     display: none !important;
+  }
+
+  .main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .page {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   .modal-overlay {
@@ -1992,6 +2015,8 @@
     background: transparent !important;
     backdrop-filter: none !important;
     padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
   }
 
   .modal {
@@ -1999,6 +2024,15 @@
     box-shadow: none !important;
     max-width: 100% !important;
     padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  .modal-body {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    max-height: none !important;
   }
 
   /* Optimizado para Impresoras Térmicas de Tickets 58mm (Sunydog PT-210) */
@@ -2011,6 +2045,10 @@
     padding: 6px 4px !important;
     font-size: 11px !important;
     line-height: 1.25 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   /* Optimizado para Impresoras de Etiquetas Adhesivas 50x80mm (Phomemo M110) */
@@ -2021,6 +2059,10 @@
     width: 100% !important;
     max-width: 50mm !important;
     padding: 8px 4px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }
 
