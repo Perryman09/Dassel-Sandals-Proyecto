@@ -40,15 +40,15 @@ export default function ReceiptModal({ sale, onClose }) {
           <table className="receipt-table">
             <thead>
               <tr>
-                <th style={{ textAlign: 'left' }}>DESCRIPCIÓN</th>
-                <th style={{ textAlign: 'right' }}>CANT</th>
-                <th style={{ textAlign: 'right' }}>TOTAL</th>
+                <th className="col-desc" style={{ textAlign: 'left' }}>DESCRIPCIÓN</th>
+                <th className="col-qty" style={{ textAlign: 'right' }}>CANT</th>
+                <th className="col-total" style={{ textAlign: 'right' }}>TOTAL</th>
               </tr>
             </thead>
             <tbody>
               {(sale.items || []).map((item, idx) => (
                 <tr key={idx}>
-                  <td>
+                  <td className="col-desc">
                     <div className="receipt-item-name">
                       {item.productName}
                       {item.selectedSize ? ` (Talla #${item.selectedSize})` : ''}
@@ -60,8 +60,8 @@ export default function ReceiptModal({ sale, onClose }) {
                       {item.color ? ` · Color: ${item.color}` : ''}
                     </small>
                   </td>
-                  <td style={{ textAlign: 'right' }}>{item.quantity}</td>
-                  <td style={{ textAlign: 'right' }}>{formatCurrency(item.subtotal)}</td>
+                  <td className="col-qty" style={{ textAlign: 'right' }}>{item.quantity}</td>
+                  <td className="col-total" style={{ textAlign: 'right' }}>{formatCurrency(item.subtotal)}</td>
                 </tr>
               ))}
             </tbody>
