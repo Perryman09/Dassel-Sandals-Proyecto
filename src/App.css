@@ -1912,6 +1912,11 @@
   font-weight: 800;
 }
 
+.receipt-cut-spacer {
+  height: 0;
+  width: 100%;
+}
+
 /* ============================
    PRODUCT TAG / BARCODE CARD
    ============================ */
@@ -2009,15 +2014,28 @@
    ============================ */
 @media print {
   @page {
-    margin: 0;
-    size: auto;
+    size: 80mm auto;
+    margin: 0mm;
   }
 
-  body {
+  html,
+  body,
+  #root,
+  .app-layout,
+  .main-content,
+  .page,
+  .modal-overlay,
+  .modal,
+  .modal-body {
     background: #ffffff !important;
     color: #000000 !important;
     margin: 0 !important;
+    margin-top: 0 !important;
     padding: 0 !important;
+    padding-top: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+    max-height: none !important;
   }
 
   /* Ocultar elementos de interfaz, navegación, botones y pantallas de fondo */
@@ -2038,13 +2056,17 @@
 
   .main-content {
     margin: 0 !important;
+    margin-top: 0 !important;
     padding: 0 !important;
+    padding-top: 0 !important;
     width: 100% !important;
   }
 
   .page {
     margin: 0 !important;
+    margin-top: 0 !important;
     padding: 0 !important;
+    padding-top: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
   }
@@ -2054,7 +2076,9 @@
     background: transparent !important;
     backdrop-filter: none !important;
     padding: 0 !important;
+    padding-top: 0 !important;
     margin: 0 !important;
+    margin-top: 0 !important;
     display: block !important;
   }
 
@@ -2063,13 +2087,17 @@
     box-shadow: none !important;
     max-width: 100% !important;
     padding: 0 !important;
+    padding-top: 0 !important;
     margin: 0 !important;
+    margin-top: 0 !important;
     background: transparent !important;
   }
 
   .modal-body {
     padding: 0 !important;
+    padding-top: 0 !important;
     margin: 0 !important;
+    margin-top: 0 !important;
     overflow: visible !important;
     max-height: none !important;
   }
@@ -2082,9 +2110,15 @@
     box-shadow: none !important;
     border: none !important;
     margin: 0 auto !important;
+    margin-top: 0 !important;
     width: 100% !important;
     max-width: 74mm !important;
-    padding: 2mm 1mm !important;
+    padding-top: 2mm !important;
+    padding-bottom: 24mm !important;
+    padding-left: 1mm !important;
+    padding-right: 1mm !important;
+    min-height: auto !important;
+    height: auto !important;
     font-family: Arial, "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif !important;
     font-size: 13px !important;
     line-height: 1.4 !important;
@@ -2095,6 +2129,14 @@
     print-color-adjust: exact !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+
+  .receipt-cut-spacer {
+    display: block !important;
+    height: 24mm !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   /* Forzar negro puro #000000 en TODOS los elementos de la factura para evitar puntos grises */

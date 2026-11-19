@@ -41,7 +41,7 @@ export default function ReceiptModal({ sale, onClose }) {
             <thead>
               <tr>
                 <th style={{ textAlign: 'left' }}>DESCRIPCIÓN</th>
-                <th style={{ textAlign: 'center' }}>CANT</th>
+                <th style={{ textAlign: 'right' }}>CANT</th>
                 <th style={{ textAlign: 'right' }}>TOTAL</th>
               </tr>
             </thead>
@@ -60,7 +60,7 @@ export default function ReceiptModal({ sale, onClose }) {
                       {item.color ? ` · Color: ${item.color}` : ''}
                     </small>
                   </td>
-                  <td style={{ textAlign: 'center' }}>{item.quantity}</td>
+                  <td style={{ textAlign: 'right' }}>{item.quantity}</td>
                   <td style={{ textAlign: 'right' }}>{formatCurrency(item.subtotal)}</td>
                 </tr>
               ))}
@@ -113,6 +113,7 @@ export default function ReceiptModal({ sale, onClose }) {
             <div className="barcode-sim">
               ||| | |||| | ||| || |||| | |||
             </div>
+            <div className="receipt-cut-spacer" />
           </div>
         </div>
 
