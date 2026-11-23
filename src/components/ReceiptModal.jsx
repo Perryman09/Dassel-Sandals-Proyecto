@@ -108,8 +108,7 @@ export default function ReceiptModal({ sale, onClose }) {
 
           <div className="receipt-footer">
             <p>¡Gracias por su compra en Dassel Sandals!</p>
-            <p><strong>15 días de devolución o cambio en calzado con este ticket.</strong></p>
-            <p>Calzado y Joyería con Encanto Artesanal</p>
+            <p><strong>15 días de cambio en calzado con este ticket.</strong></p>
             <div className="barcode-sim">
               ||| | |||| | ||| || |||| | |||
             </div>
