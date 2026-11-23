@@ -52,12 +52,11 @@ export default function ReceiptModal({ sale, onClose }) {
                     <div className="receipt-item-name">
                       {item.productName}
                       {item.selectedSize ? ` (Talla #${item.selectedSize})` : ''}
-                      {item.color ? ` - Color: ${item.color}` : ''}
                     </div>
                     <small className="receipt-item-code">
                       {item.productCode} @ {formatCurrency(item.price)}
                       {item.selectedSize ? ` · Talla ${Number(item.selectedSize) >= 30 ? `EUR #${item.selectedSize}` : `US #${item.selectedSize}`}` : ''}
-                      {item.color ? ` · Color: ${item.color}` : ''}
+                      {item.color && !item.productName?.toLowerCase().includes(item.color.toLowerCase()) ? ` · Color: ${item.color}` : (item.color && !item.productName ? ` · Color: ${item.color}` : '')}
                     </small>
                   </td>
                   <td className="col-qty" style={{ textAlign: 'right' }}>{item.quantity}</td>
